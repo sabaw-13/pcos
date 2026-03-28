@@ -1,0 +1,341 @@
+import React, { useEffect } from 'react';
+import { Link } from 'react-router-dom';
+
+const Landing = () => {
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('is-visible');
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.2, rootMargin: '0px 0px -60px 0px' }
+    );
+
+    const revealItems = document.querySelectorAll('.reveal-on-scroll');
+    revealItems.forEach((item) => observer.observe(item));
+
+    return () => observer.disconnect();
+  }, []);
+
+  const menuOverview = [
+    {
+      id: 1,
+      title: 'Cafe Ambience',
+      image: '/images/persi.jpg',
+      description: 'A warm, cozy space perfect for catch-ups, work, and chill coffee breaks.'
+    },
+    {
+      id: 2,
+      title: 'Burgers & Rice Meals',
+      image: '/images/p1.jpg',
+      description: 'Hearty plates and rice meals made fresh and served hot every day.'
+    },
+    {
+      id: 3,
+      title: 'Signature Sandwich Pairings',
+      image: '/images/p2.jpg',
+      description: 'Flavor-packed sandwiches and sides that satisfy any craving.'
+    },
+    {
+      id: 4,
+      title: 'Cafe Drinks',
+      image: '/images/p4.jpg',
+      description: 'Refreshing handcrafted drinks from creamy milkshakes to iced favorites.'
+    },
+    {
+      id: 5,
+      title: 'Menu Variety',
+      image: '/images/p3.jpg',
+      description: 'From rice bowls to burgers and soups, there is something for everyone.'
+    }
+  ];
+
+  const testimonials = [
+    {
+      id: 1,
+      name: 'Sarah Johnson',
+      role: 'Regular Customer',
+      quote: 'Best coffee in town. The ordering app makes it so convenient.',
+      avatar: 'SJ'
+    },
+    {
+      id: 2,
+      name: 'Mike Chen',
+      role: 'Business Owner',
+      quote: 'Love the quick pickup times and consistent quality.',
+      avatar: 'MC'
+    },
+    {
+      id: 3,
+      name: 'Emma Davis',
+      role: 'Student',
+      quote: 'Perfect study spot with amazing pastries and peaceful vibes.',
+      avatar: 'ED'
+    }
+  ];
+
+  const aboutHighlights = [
+    {
+      id: 1,
+      title: 'Small Batch',
+      description: 'Freshly brewed and prepared in small batches for better flavor and consistency.',
+      icon: 'batch'
+    },
+    {
+      id: 2,
+      title: 'Quick Pickup',
+      description: 'Order ahead and get your favorites right on time with a smooth pickup flow.',
+      icon: 'pickup'
+    },
+    {
+      id: 3,
+      title: 'Community First',
+      description: 'A welcoming cafe vibe for students, families, and friends all day long.',
+      icon: 'community'
+    }
+  ];
+
+  const AboutIcon = ({ type }) => {
+    if (type === 'batch') {
+      return (
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M6 4H18L17 19H7L6 4Z" fill="none" stroke="currentColor" strokeWidth="2" />
+          <path d="M9 2V4M15 2V4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+          <path d="M9 10C9 8.5 10.2 7.5 11.5 6.5M14 10C14 8.8 14.8 8.1 16 7.2" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        </svg>
+      );
+    }
+
+    if (type === 'pickup') {
+      return (
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M3 14H15V18H3V14Z" fill="none" stroke="currentColor" strokeWidth="2" />
+          <path d="M15 15H18L21 11H17L15 15Z" fill="none" stroke="currentColor" strokeWidth="2" />
+          <circle cx="7" cy="19" r="2" fill="none" stroke="currentColor" strokeWidth="2" />
+          <circle cx="17" cy="19" r="2" fill="none" stroke="currentColor" strokeWidth="2" />
+        </svg>
+      );
+    }
+
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="8" cy="9" r="3" fill="none" stroke="currentColor" strokeWidth="2" />
+        <circle cx="16" cy="9" r="3" fill="none" stroke="currentColor" strokeWidth="2" />
+        <path d="M3 20C3.3 16.7 5.5 15 8 15C10.5 15 12.7 16.7 13 20" fill="none" stroke="currentColor" strokeWidth="2" />
+        <path d="M11 20C11.3 17.3 13.1 16 16 16C18.6 16 20.6 17.5 21 20" fill="none" stroke="currentColor" strokeWidth="2" />
+      </svg>
+    );
+  };
+
+  const StarIcon = () => (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d="M12 2.8L14.7 8.2L20.7 9.1L16.3 13.3L17.3 19.2L12 16.4L6.7 19.2L7.7 13.3L3.3 9.1L9.3 8.2L12 2.8Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+
+  return (
+    <div className="landing-container">
+      <section className="hero-section">
+        <div className="hero-blur hero-blur-top"></div>
+        <div className="hero-blur hero-blur-bottom"></div>
+
+        <div className="hero-shell">
+          <div className="hero-grid">
+            <div className="hero-copy">
+              <div className="hero-badge">
+                <img src="/images/plogo.jpg" alt="Persimonay logo" className="hero-badge-logo" />
+                <span>Persimonay Signature Experience</span>
+              </div>
+
+              <h1 className="hero-title">
+                Savor the flavor, <span className="hero-title-accent">taste the difference.</span>
+              </h1>
+
+              <p className="hero-description">
+                More than a mean, it's an experience. Handcrafted drinks, fresh pastries, and
+                seamless ordering made for your daily rhythm.
+              </p>
+
+              <div className="hero-buttons">
+                <Link to="/menu" className="btn btn-primary">
+                  Get Started
+                </Link>
+                <a href="#about" className="btn btn-secondary hero-secondary">
+                  Learn More
+                </a>
+              </div>
+
+              <div className="hero-stats">
+                <div className="hero-stat">
+                  <div className="hero-stat-value">100%</div>
+                  <p className="hero-stat-label">Fresh</p>
+                </div>
+                <div className="hero-stat">
+                  <div className="hero-stat-value">24/7</div>
+                  <p className="hero-stat-label">Order Access</p>
+                </div>
+                <div className="hero-stat">
+                  <div className="hero-stat-value">15m</div>
+                  <p className="hero-stat-label">Avg Pickup</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="hero-panel hero-photo-panel">
+              <img
+                src="/images/persi.jpg"
+                alt="Persimonay Cafe interior"
+                className="hero-feature-image"
+              />
+              <div className="hero-photo-overlay"></div>
+              <div className="hero-photo-brand">
+                <img src="/images/plogo.jpg" alt="Persimonay logo" className="hero-photo-logo" />
+                <div>
+                  <p className="hero-photo-title">Persimonay Cafe</p>
+                  <p className="hero-photo-subtitle">Coffee and food hideout</p>
+                </div>
+              </div>
+              <div className="hero-image-caption">Your cozy coffee and food hideout.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="about" className="about-section">
+        <div className="section-container about-modern">
+          <div className="about-copy reveal-on-scroll">
+            <h2 className="section-title section-title-center">About Persimonay</h2>
+            <p className="section-subtitle">
+              Handcrafted coffee, comfort food, and a cozy vibe in one destination.
+            </p>
+            <p className="about-description">
+              We focus on quality ingredients, thoughtful preparation, and friendly service to
+              make every visit feel easy, warm, and satisfying.
+            </p>
+          </div>
+          <div className="about-highlights about-highlights-grid">
+            {aboutHighlights.map((item, idx) => (
+              <article
+                key={item.id}
+                className="highlight-card reveal-on-scroll"
+                style={{ '--delay': `${80 + idx * 80}ms` }}
+              >
+                <div className="highlight-icon" aria-hidden="true">
+                  <AboutIcon type={item.icon} />
+                </div>
+                <h3>{item.title}</h3>
+                <p>{item.description}</p>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="featured-section section-alt">
+        <div className="section-container">
+          <div className="section-header reveal-on-scroll">
+            <h2 className="section-title section-title-center">Menu Overview</h2>
+            <p className="section-subtitle section-title-center">
+              A quick look at our food, drinks, and cafe experience.
+            </p>
+          </div>
+          <div className="overview-grid">
+            {menuOverview.map((item, idx) => (
+              <article
+                key={item.id}
+                className="overview-card reveal-on-scroll"
+                style={{ '--delay': `${idx * 70}ms` }}
+              >
+                <div className="overview-image-wrap">
+                  <img src={item.image} alt={item.title} className="overview-image" />
+                </div>
+                <h3 className="overview-title">{item.title}</h3>
+                <p className="overview-description">{item.description}</p>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="how-it-works">
+        <div className="section-container">
+          <h2 className="section-title section-title-center reveal-on-scroll">How It Works</h2>
+          <p className="section-subtitle section-title-center reveal-on-scroll">
+            Order in four simple steps from browsing to pickup.
+          </p>
+          <div className="steps-grid">
+            {[
+              { step: '1', title: 'Browse', desc: 'Explore our menu' },
+              { step: '2', title: 'Order', desc: 'Add items to cart' },
+              { step: '3', title: 'Pay', desc: 'Secure checkout' },
+              { step: '4', title: 'Enjoy', desc: 'Pick up fresh' }
+            ].map((item, idx) => (
+              <div key={idx} className="step-card reveal-on-scroll" style={{ '--delay': `${idx * 70}ms` }}>
+                <div className="step-number">{item.step}</div>
+                <h3 className="step-title">{item.title}</h3>
+                <p className="step-description">{item.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="testimonials-section section-alt">
+        <div className="section-container">
+          <h2 className="section-title section-title-center reveal-on-scroll">What Our Customers Say</h2>
+          <p className="section-subtitle section-title-center reveal-on-scroll">
+            Real feedback from customers who keep coming back.
+          </p>
+          <div className="testimonials-grid">
+            {testimonials.map((testimonial, idx) => (
+              <div
+                key={testimonial.id}
+                className="testimonial-card reveal-on-scroll"
+                style={{ '--delay': `${idx * 80}ms` }}
+              >
+                <div className="testimonial-header">
+                  <div className="testimonial-avatar">{testimonial.avatar}</div>
+                  <div className="testimonial-meta">
+                    <div>
+                      <h4 className="testimonial-name">{testimonial.name}</h4>
+                      <p className="testimonial-role">{testimonial.role}</p>
+                    </div>
+                    <div className="testimonial-rating" aria-label="Rated 5 out of 5">
+                      {[...Array(5)].map((_, i) => (
+                        <span key={i} className="rating-icon">
+                          <StarIcon />
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <p className="testimonial-quote">"{testimonial.quote}"</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="cta-section">
+        <div className="section-container cta-container">
+          <h2 className="cta-title">Ready to Order?</h2>
+          <p className="cta-subtitle">
+            Join hundreds of satisfied customers enjoying fresh coffee and pastries
+          </p>
+          <Link to="/menu" className="btn btn-cta">
+            Start Ordering Now
+          </Link>
+        </div>
+      </section>
+    </div>
+  );
+};
+
+export default Landing;
