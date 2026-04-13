@@ -66,7 +66,7 @@ const Landing = () => {
       id: 2,
       name: 'Mike Chen',
       role: 'Business Owner',
-      quote: 'Love the quick pickup times and consistent quality.',
+      quote: 'Love the easy online delivery and consistent quality.',
       avatar: 'MC'
     },
     {
@@ -87,8 +87,8 @@ const Landing = () => {
     },
     {
       id: 2,
-      title: 'Quick Pickup',
-      description: 'Order ahead and get your favorites right on time with a smooth pickup flow.',
+      title: 'Online Delivery',
+      description: 'Order online and get your favorites prepared for delivery.',
       icon: 'pickup'
     },
     {
@@ -159,17 +159,17 @@ const Landing = () => {
               </h1>
 
               <p className="hero-description">
-                More than a mean, it's an experience. Handcrafted drinks, fresh pastries, and
-                seamless ordering made for your daily rhythm.
+                More than a meal, it's an experience. Handcrafted drinks, fresh pastries, and
+                simple online reservation and delivery made for your daily rhythm.
               </p>
 
               <div className="hero-buttons">
                 <Link to="/menu" className="btn btn-primary">
-                  Get Started
+                  Order Delivery
                 </Link>
-                <a href="#about" className="btn btn-secondary hero-secondary">
-                  Learn More
-                </a>
+                <Link to="/reservation" className="btn btn-secondary hero-secondary">
+                  Reserve Online
+                </Link>
               </div>
 
               <div className="hero-stats">
@@ -183,7 +183,7 @@ const Landing = () => {
                 </div>
                 <div className="hero-stat">
                   <div className="hero-stat-value">15m</div>
-                  <p className="hero-stat-label">Avg Pickup</p>
+                  <p className="hero-stat-label">Avg Prep</p>
                 </div>
               </div>
             </div>
@@ -268,14 +268,14 @@ const Landing = () => {
         <div className="section-container">
           <h2 className="section-title section-title-center reveal-on-scroll">How It Works</h2>
           <p className="section-subtitle section-title-center reveal-on-scroll">
-            Order in four simple steps from browsing to pickup.
+            Order delivery or request a reservation from your user account.
           </p>
           <div className="steps-grid">
             {[
-              { step: '1', title: 'Browse', desc: 'Explore our menu' },
-              { step: '2', title: 'Order', desc: 'Add items to cart' },
-              { step: '3', title: 'Pay', desc: 'Secure checkout' },
-              { step: '4', title: 'Enjoy', desc: 'Pick up fresh' }
+              { step: '1', title: 'Log In', desc: 'Open your user account' },
+              { step: '2', title: 'Choose', desc: 'Reservation or delivery' },
+              { step: '3', title: 'Submit', desc: 'Send the needed details' },
+              { step: '4', title: 'Enjoy', desc: 'Wait for confirmation' }
             ].map((item, idx) => (
               <div key={idx} className="step-card reveal-on-scroll" style={{ '--delay': `${idx * 70}ms` }}>
                 <div className="step-number">{item.step}</div>
@@ -327,10 +327,10 @@ const Landing = () => {
         <div className="section-container cta-container">
           <h2 className="cta-title">Ready to Order?</h2>
           <p className="cta-subtitle">
-            Join hundreds of satisfied customers enjoying fresh coffee and pastries
+            Use your account for online delivery or an online reservation.
           </p>
-          <Link to="/menu" className="btn btn-cta">
-            Start Ordering Now
+          <Link to="/login" className="btn btn-cta">
+            Open User Account
           </Link>
         </div>
       </section>

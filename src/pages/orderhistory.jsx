@@ -1,50 +1,38 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../context/authcontext';
+import { subscribeOrders } from '../services/database';
 
 const OrderHistory = () => {
-  const [orders] = useState([
-    {
-      id: 1,
-      orderNumber: '#12345',
-      date: '2026-03-25',
-      items: ['Latte', 'Croissant', 'Muffin'],
-      total: 14.97,
-      status: 'Completed',
-      time: '2:30 PM'
-    },
-    {
-      id: 2,
-      orderNumber: '#12344',
-      date: '2026-03-24',
-      items: ['Cappuccino', 'Almond Croissant'],
-      total: 8.48,
-      status: 'Completed',
-      time: '10:15 AM'
-    },
-    {
-      id: 3,
-      orderNumber: '#12343',
-      date: '2026-03-23',
-      items: ['Espresso', 'Blueberry Muffin', 'Iced Tea'],
-      total: 9.97,
-      status: 'Completed',
-      time: '3:45 PM'
-    },
-    {
-      id: 4,
-      orderNumber: '#12342',
-      date: '2026-03-22',
-      items: ['Mocha', 'Plain Croissant'],
-      total: 7.48,
-      status: 'Completed',
-      time: '9:00 AM'
+  const { currentUser, isAdmin } = useAuth();
+  const [orders, setOrders] = useState([]);
+  const [ordersError, setOrdersError] = useState('');
+
+  useEffect(() => {
+    if (!currentUser || isAdmin) {
+      setOrders([]);
+      return undefined;
     }
-  ]);
+
+    const unsubscribe = subscribeOrders(
+      (firebaseOrders) => {
+        setOrders(firebaseOrders.filter((order) => order.customerId === currentUser.uid));
+      },
+      () => setOrdersError('Unable to load Firebase orders right now.')
+    );
+
+    return unsubscribe;
+  }, [currentUser, isAdmin]);
 
   const getStatusColor = (status) => {
     switch(status) {
       case 'Completed':
         return 'status-completed';
+      case 'Received':
+        return 'status-completed';
+      case 'Waiting':
+      case 'Preparing':
+        return 'status-pending';
       case 'Pending':
         return 'status-pending';
       case 'Cancelled':
@@ -58,11 +46,22 @@ const OrderHistory = () => {
     <div className="order-history-container">
       <div className="order-history-header">
         <h1>Order History</h1>
-        <p>View all your past orders</p>
+        <p>View Firebase delivery and reservation requests</p>
       </div>
 
       <div className="order-history-content">
-        {orders.length === 0 ? (
+        {(!currentUser || isAdmin) && (
+          <div className="no-orders">
+            <div className="no-orders-icon">📦</div>
+            <h2>Customer Login Required</h2>
+            <p>Log in with a customer account to view your order history.</p>
+            <Link to="/login" className="btn btn-primary">
+              Open Customer Login
+            </Link>
+          </div>
+        )}
+        {ordersError && <p className="checkout-error">{ordersError}</p>}
+        {currentUser && !isAdmin && orders.length === 0 ? (
           <div className="no-orders">
             <div className="no-orders-icon">📦</div>
             <h2>No Orders Yet</h2>
@@ -71,14 +70,18 @@ const OrderHistory = () => {
               Browse Menu
             </Link>
           </div>
-        ) : (
+        ) : currentUser && !isAdmin ? (
           <div className="orders-list">
             {orders.map(order => (
               <div key={order.id} className="order-card">
                 <div className="order-card-header">
                   <div className="order-info">
                     <h3 className="order-number">{order.orderNumber}</h3>
-                    <p className="order-date">{new Date(order.date).toLocaleDateString()} at {order.time}</p>
+                    <p className="order-date">
+                      {order.createdAt
+                        ? new Date(order.createdAt).toLocaleString()
+                        : 'New Firebase request'}
+                    </p>
                   </div>
                   <div className={`order-status ${getStatusColor(order.status)}`}>
                     {order.status}
@@ -89,7 +92,7 @@ const OrderHistory = () => {
                   <div className="order-items">
                     <h4>Items:</h4>
                     <ul className="items-list">
-                      {order.items.map((item, idx) => (
+                      {(order.items || []).map((item, idx) => (
                         <li key={idx}>{item}</li>
                       ))}
                     </ul>
@@ -97,7 +100,7 @@ const OrderHistory = () => {
 
                   <div className="order-total">
                     <span>Total:</span>
-                    <span className="total-amount">P{order.total.toFixed(2)}</span>
+                    <span className="total-amount">P{Number(order.total || 0).toFixed(2)}</span>
                   </div>
                 </div>
 
@@ -112,7 +115,7 @@ const OrderHistory = () => {
               </div>
             ))}
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   );

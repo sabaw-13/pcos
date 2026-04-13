@@ -1,10 +1,9 @@
-import React, { useContext, useMemo, useState } from 'react';
+import React, { useContext, useMemo } from 'react';
 import { CartContext } from '../context/cartcontext';
 import CategoryIcon from './categoryicon';
 
 const ProductCard = ({ item }) => {
   const { addToCart } = useContext(CartContext);
-  const [showDetails, setShowDetails] = useState(false);
 
   const resolveType = (value) => {
     const label = String(value || '').toLowerCase();
@@ -56,28 +55,14 @@ const ProductCard = ({ item }) => {
       <div className="product-card-content">
         <h3 className="product-card-name">{item.name}</h3>
         <p className="product-card-description">{item.description}</p>
-        {showDetails && (
-          <div className="product-details-panel">
-            <p className="product-details-line"><strong>Category:</strong> {item.category.replace('-', ' ')}</p>
-            <p className="product-details-line">{detailSummary}</p>
-          </div>
-        )}
+        <p className="product-card-meta">{detailSummary}</p>
 
         <div className="product-card-footer">
           <span className="product-card-price">P{item.price.toFixed(2)}</span>
-          <div className="product-card-actions">
-            <button
-              type="button"
-              onClick={() => setShowDetails((prev) => !prev)}
-              className="btn-view-details"
-            >
-              {showDetails ? 'Hide details' : 'View details'}
-            </button>
-            <button type="button" onClick={handleAddToCart} className="btn-add-to-cart">
-              <PlusIcon />
-              Add
-            </button>
-          </div>
+          <button type="button" onClick={handleAddToCart} className="btn-add-to-cart">
+            <PlusIcon />
+            Add to cart
+          </button>
         </div>
       </div>
     </div>

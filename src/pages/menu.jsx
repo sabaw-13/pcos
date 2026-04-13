@@ -1,8 +1,10 @@
-import React, { useState, useContext } from 'react';
+import React, { useEffect, useState, useContext } from 'react';
 import { CartContext } from '../context/cartcontext';
 import ProductCard from '../components/productcard';
 import CartPreview from '../components/cartpreview';
 import CategoryIcon from '../components/categoryicon';
+import { baseMenuItems, menuCategories } from '../data/menudata';
+import { subscribeMenuItems } from '../services/database';
 
 const SearchIcon = () => (
   <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -14,93 +16,21 @@ const SearchIcon = () => (
 const Menu = () => {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [customMenuItems, setCustomMenuItems] = useState([]);
+  const [menuError, setMenuError] = useState('');
   const { cart } = useContext(CartContext);
 
-  const categories = [
-    { id: 'all', name: 'All Items', icon: 'all' },
-    { id: 'drinks', name: 'Drinks', icon: 'drinks' },
-    { id: 'burger-sandwiches', name: 'Burger & Sandwiches', icon: 'burger-sandwiches' },
-    { id: 'rice-bowls', name: 'Rice Bowls', icon: 'rice-bowls' }
-  ];
+  const categories = menuCategories;
+  const menuItems = [...baseMenuItems, ...customMenuItems];
 
-  const menuItems = [
-    {
-      id: 1,
-      name: 'Strawberry Milkshake',
-      price: 65,
-      category: 'drinks',
-      description: '16oz freshly blended strawberry milkshake',
-      image: 'Drink',
-      popular: true
-    },
-    {
-      id: 2,
-      name: 'Chocolate Milkshake',
-      price: 65,
-      category: 'drinks',
-      description: '16oz rich chocolate milkshake',
-      image: 'Drink'
-    },
-    {
-      id: 3,
-      name: 'Matcha Milkshake',
-      price: 65,
-      category: 'drinks',
-      description: '16oz creamy matcha milkshake',
-      image: 'Drink'
-    },
-    {
-      id: 4,
-      name: 'Chicken Sandwich',
-      price: 130,
-      category: 'burger-sandwiches',
-      description: 'Crispy chicken sandwich with signature sauce',
-      image: 'Burger',
-      popular: true
-    },
-    {
-      id: 5,
-      name: 'PersiHotdog Sandwich',
-      price: 115,
-      category: 'burger-sandwiches',
-      description: 'House-style hotdog sandwich',
-      image: 'Burger'
-    },
-    {
-      id: 6,
-      name: 'Angus Cheese Burger',
-      price: 180,
-      category: 'burger-sandwiches',
-      description: 'Juicy angus patty with melted cheese',
-      image: 'Burger',
-      popular: true
-    },
-    {
-      id: 7,
-      name: 'Hungarian Sausage',
-      price: 150,
-      category: 'rice-bowls',
-      description: 'Savory hungarian sausage rice bowl',
-      image: 'Rice'
-    },
-    {
-      id: 8,
-      name: 'Litson Kawali',
-      price: 150,
-      category: 'rice-bowls',
-      description: 'Crispy pork belly over steamed rice',
-      image: 'Rice'
-    },
-    {
-      id: 9,
-      name: 'Sisig Rice Bowl',
-      price: 150,
-      category: 'rice-bowls',
-      description: 'Sizzling sisig served with rice',
-      image: 'Rice',
-      popular: true
-    }
-  ];
+  useEffect(() => {
+    const unsubscribe = subscribeMenuItems(
+      setCustomMenuItems,
+      () => setMenuError('Unable to load staff-added menu items right now.')
+    );
+
+    return unsubscribe;
+  }, []);
 
   const filteredItems = menuItems.filter((item) => {
     const matchesCategory = selectedCategory === 'all' || item.category === selectedCategory;
@@ -118,23 +48,16 @@ const Menu = () => {
   return (
     <div className="menu-container">
       <div className="menu-header">
-        <div className="menu-header-glow menu-header-glow-left"></div>
-        <div className="menu-header-glow menu-header-glow-right"></div>
         <div className="menu-header-content">
-          <div className="menu-badge">Freshly Prepared Daily</div>
-          <h1 className="menu-title">Persimonay Menu</h1>
-          <p className="menu-subtitle">Drinks, burger and sandwiches, and rice bowls</p>
-          <p className="menu-description">
-            Explore handcrafted favorites, made to order and served with our signature Persimonay
-            flavor.
-          </p>
-          <div className="menu-header-logo-wrap">
-            <img
-              src="/images/plogo.jpg"
-              alt="Persimonay Cafe logo"
-              className="menu-header-logo"
-            />
+          <div className="menu-flow-bar">
+            <span className="menu-flow-step active">1. Browse</span>
+            <span className="menu-flow-step">2. Cart</span>
+            <span className="menu-flow-step">3. Checkout</span>
           </div>
+          <h1 className="menu-title">Order Food and Drinks</h1>
+          <p className="menu-description">
+            Search the menu, add your items, then head to cart when you are ready.
+          </p>
         </div>
       </div>
 
@@ -176,6 +99,7 @@ const Menu = () => {
             </h2>
             <div className="items-header-tags">
               <span className="active-category-tag">Showing: {activeCategoryName}</span>
+              {menuError && <span className="active-category-tag">{menuError}</span>}
               {filteredItems.some((item) => item.popular) && selectedCategory === 'all' && (
                 <span className="popular-badge">Includes Popular Items</span>
               )}

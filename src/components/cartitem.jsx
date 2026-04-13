@@ -62,7 +62,7 @@ const CartItem = ({ item, onRemove, onUpdateQuantity }) => {
         <span className="item-unit">P{item.price.toFixed(2)} each</span>
       </div>
 
-      <button onClick={() => onRemove(item.id)} className="btn-remove" aria-label={`Remove ${item.name}`}>
+      <button onClick={() => onRemove(item)} className="btn-remove" aria-label={`Remove ${item.name}`}>
         <TrashIcon />
       </button>
     </div>

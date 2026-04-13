@@ -1,10 +1,13 @@
 import React, { useContext, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/authcontext';
 import { CartContext } from '../context/cartcontext';
 import CheckoutStep from '../components/checkoutstep';
+import { addOrder } from '../services/database';
 
 const Checkout = () => {
   const navigate = useNavigate();
+  const { currentUser, isAdmin } = useAuth();
   const { cart, clearCart } = useContext(CartContext);
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
@@ -21,6 +24,9 @@ const Checkout = () => {
   });
 
   const [orderPlaced, setOrderPlaced] = useState(false);
+  const [placedOrderNumber, setPlacedOrderNumber] = useState('');
+  const [orderError, setOrderError] = useState('');
+  const [savingOrder, setSavingOrder] = useState(false);
 
   const subtotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
   const tax = subtotal * 0.08;
@@ -65,12 +71,47 @@ const Checkout = () => {
     }
   };
 
-  const handlePlaceOrder = () => {
-    setOrderPlaced(true);
-    setTimeout(() => {
-      clearCart();
-      navigate('/order-history');
-    }, 2000);
+  const handlePlaceOrder = async () => {
+    if (!currentUser || isAdmin) {
+      setOrderError('Please log in with a customer account before placing a delivery order.');
+      return;
+    }
+
+    const orderNumber = `#DL-${Date.now().toString().slice(-6)}`;
+
+    try {
+      setSavingOrder(true);
+      await addOrder({
+        orderNumber,
+        customer: formData.name,
+        service: 'Online Delivery',
+        items: cart.map((item) => `${item.name} x ${item.quantity}`),
+        total,
+        status: 'Waiting',
+        customerId: currentUser.uid,
+        contact: {
+          email: formData.email || currentUser.email,
+          phone: formData.phone
+        },
+        deliveryAddress: {
+          street: formData.address,
+          city: formData.city,
+          zipCode: formData.zipCode
+        },
+        paymentMethod: formData.paymentMethod
+      });
+      setPlacedOrderNumber(orderNumber);
+      setOrderPlaced(true);
+      setOrderError('');
+      setTimeout(() => {
+        clearCart();
+        navigate('/order-history');
+      }, 2000);
+    } catch (error) {
+      setOrderError('Unable to save this delivery order to Firebase.');
+    } finally {
+      setSavingOrder(false);
+    }
   };
 
   if (orderPlaced) {
@@ -79,9 +120,23 @@ const Checkout = () => {
         <div className="success-screen">
           <div className="success-animation">✓</div>
           <h1>Order Placed Successfully!</h1>
-          <p>Your order has been confirmed and will be ready soon.</p>
-          <div className="order-number">Order #12345</div>
-          <p className="delivery-time">Estimated pickup: 15-20 minutes</p>
+          <p>Your online delivery order has been confirmed and will be prepared soon.</p>
+          <div className="order-number">{placedOrderNumber}</div>
+          <p className="delivery-time">Estimated delivery prep: 15-20 minutes</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!currentUser || isAdmin) {
+    return (
+      <div className="checkout-container">
+        <div className="success-screen">
+          <h1>Customer login required</h1>
+          <p>Delivery checkout is only available for customer accounts.</p>
+          <Link to="/login" className="btn btn-primary">
+            Open Customer Login
+          </Link>
         </div>
       </div>
     );
@@ -90,8 +145,9 @@ const Checkout = () => {
   return (
     <div className="checkout-container">
       <div className="checkout-header">
+        <p className="page-step-label">Step 3 of 3</p>
         <h1>Checkout</h1>
-        <p>Step {currentStep} of 3</p>
+        <p>Complete delivery details, payment, and review.</p>
       </div>
 
       <div className="checkout-layout">
@@ -301,11 +357,16 @@ const Checkout = () => {
                 Continue
               </button>
             ) : (
-              <button onClick={handlePlaceOrder} className="btn btn-primary btn-success">
-                Place Order
+              <button
+                onClick={handlePlaceOrder}
+                className="btn btn-primary btn-success"
+                disabled={savingOrder}
+              >
+                {savingOrder ? 'Saving Order...' : 'Place Order'}
               </button>
             )}
           </div>
+          {orderError && <p className="checkout-error">{orderError}</p>}
         </div>
 
         <div className="checkout-summary">
