@@ -7,13 +7,24 @@ import {
 import { ref, serverTimestamp, set } from 'firebase/database';
 import { auth, database } from './firebase';
 
-export const ADMIN_EMAIL = (process.env.REACT_APP_ADMIN_EMAIL || 'admin@pcos.com').toLowerCase();
+const DEFAULT_ADMIN_EMAIL = 'admin_pcos@pcos.com';
+const RETIRED_ADMIN_EMAILS = ['admin@pcos.com'];
+const configuredAdminEmail = (process.env.REACT_APP_ADMIN_EMAIL || DEFAULT_ADMIN_EMAIL).toLowerCase();
+
+export const ADMIN_EMAIL = RETIRED_ADMIN_EMAILS.includes(configuredAdminEmail)
+  ? DEFAULT_ADMIN_EMAIL
+  : configuredAdminEmail;
 
 const isAdminEmail = (email) => email.trim().toLowerCase() === ADMIN_EMAIL;
+const isRetiredAdminEmail = (email) => RETIRED_ADMIN_EMAILS.includes(email.trim().toLowerCase());
 
 export const createCustomerAccount = async ({ name, email, password }) => {
   if (isAdminEmail(email)) {
     throw new Error('This email is reserved for the single admin account.');
+  }
+
+  if (isRetiredAdminEmail(email)) {
+    throw new Error('This staff account has been retired.');
   }
 
   const credential = await createUserWithEmailAndPassword(auth, email, password);
@@ -29,6 +40,10 @@ export const createCustomerAccount = async ({ name, email, password }) => {
 };
 
 export const loginCustomer = async ({ email, password }) => {
+  if (isRetiredAdminEmail(email)) {
+    throw new Error('This staff account has been retired.');
+  }
+
   const credential = await signInWithEmailAndPassword(auth, email, password);
 
   if (isAdminEmail(credential.user.email || '')) {
@@ -40,6 +55,10 @@ export const loginCustomer = async ({ email, password }) => {
 };
 
 export const loginAdmin = async ({ email, password }) => {
+  if (isRetiredAdminEmail(email)) {
+    throw new Error('This staff account has been retired.');
+  }
+
   const credential = await signInWithEmailAndPassword(auth, email, password);
 
   if (!isAdminEmail(credential.user.email || '')) {
