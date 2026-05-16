@@ -17,15 +17,13 @@ const Checkout = () => {
     address: '',
     city: '',
     zipCode: '',
-    cardNumber: '',
-    cardExpiry: '',
-    cardCVC: '',
-    paymentMethod: 'card'
+    paymentMethod: 'cod'
   });
 
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [placedOrderNumber, setPlacedOrderNumber] = useState('');
   const [orderError, setOrderError] = useState('');
+  const [deliveryError, setDeliveryError] = useState('');
   const [savingOrder, setSavingOrder] = useState(false);
 
   const subtotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
@@ -33,7 +31,7 @@ const Checkout = () => {
   const total = subtotal + tax;
 
   const deliveryFields = ['name', 'email', 'phone', 'address', 'city', 'zipCode'];
-  const paymentFields = formData.paymentMethod === 'card' ? ['cardNumber', 'cardExpiry', 'cardCVC'] : [];
+  const paymentFields = [];
 
   const filledDeliveryFields = deliveryFields.filter((field) => formData[field].trim() !== '').length;
   const filledPaymentFields = paymentFields.filter((field) => formData[field].trim() !== '').length;
@@ -57,10 +55,24 @@ const Checkout = () => {
       ...prev,
       [name]: value
     }));
+
+    if (deliveryFields.includes(name)) {
+      setDeliveryError('');
+    }
   };
 
   const handleNextStep = () => {
+    if (currentStep === 1) {
+      const missingDeliveryFields = deliveryFields.filter((field) => formData[field].trim() === '');
+
+      if (missingDeliveryFields.length > 0) {
+        setDeliveryError('Please fill up all delivery information fields before continuing.');
+        return;
+      }
+    }
+
     if (currentStep < 3) {
+      setDeliveryError('');
       setCurrentStep(currentStep + 1);
     }
   };
@@ -74,6 +86,14 @@ const Checkout = () => {
   const handlePlaceOrder = async () => {
     if (!currentUser || isAdmin) {
       setOrderError('Please log in with a customer account before placing a delivery order.');
+      return;
+    }
+
+    const missingDeliveryFields = deliveryFields.filter((field) => formData[field].trim() === '');
+
+    if (missingDeliveryFields.length > 0) {
+      setCurrentStep(1);
+      setDeliveryError('Please fill up all delivery information fields before placing your order.');
       return;
     }
 
@@ -180,6 +200,7 @@ const Checkout = () => {
                     value={formData.name}
                     onChange={handleInputChange}
                     className="form-input"
+                    required
                   />
                 </div>
                 <div className="form-row">
@@ -190,6 +211,7 @@ const Checkout = () => {
                     value={formData.email}
                     onChange={handleInputChange}
                     className="form-input"
+                    required
                   />
                 </div>
                 <div className="form-row">
@@ -200,6 +222,7 @@ const Checkout = () => {
                     value={formData.phone}
                     onChange={handleInputChange}
                     className="form-input"
+                    required
                   />
                 </div>
                 <div className="form-row">
@@ -210,6 +233,7 @@ const Checkout = () => {
                     value={formData.address}
                     onChange={handleInputChange}
                     className="form-input"
+                    required
                   />
                 </div>
                 <div className="form-row-2">
@@ -220,6 +244,7 @@ const Checkout = () => {
                     value={formData.city}
                     onChange={handleInputChange}
                     className="form-input"
+                    required
                   />
                   <input
                     type="text"
@@ -228,9 +253,11 @@ const Checkout = () => {
                     value={formData.zipCode}
                     onChange={handleInputChange}
                     className="form-input"
+                    required
                   />
                 </div>
               </form>
+              {deliveryError && <p className="checkout-error">{deliveryError}</p>}
             </CheckoutStep>
           )}
 
@@ -241,68 +268,23 @@ const Checkout = () => {
                   <input
                     type="radio"
                     name="paymentMethod"
-                    value="card"
-                    checked={formData.paymentMethod === 'card'}
+                    value="cod"
+                    checked={formData.paymentMethod === 'cod'}
                     onChange={handleInputChange}
                   />
-                  <span className="method-label">💳 Credit Card</span>
+                  <span className="method-label">Cash on Delivery</span>
                 </label>
                 <label className="payment-method">
                   <input
                     type="radio"
                     name="paymentMethod"
-                    value="paypal"
-                    checked={formData.paymentMethod === 'paypal'}
+                    value="gcash"
+                    checked={formData.paymentMethod === 'gcash'}
                     onChange={handleInputChange}
                   />
-                  <span className="method-label">🅿️ PayPal</span>
-                </label>
-                <label className="payment-method">
-                  <input
-                    type="radio"
-                    name="paymentMethod"
-                    value="apple"
-                    checked={formData.paymentMethod === 'apple'}
-                    onChange={handleInputChange}
-                  />
-                  <span className="method-label">🍎 Apple Pay</span>
+                  <span className="method-label">GCash</span>
                 </label>
               </div>
-
-              {formData.paymentMethod === 'card' && (
-                <form className="form-group">
-                  <div className="form-row">
-                    <input
-                      type="text"
-                      name="cardNumber"
-                      placeholder="Card Number"
-                      value={formData.cardNumber}
-                      onChange={handleInputChange}
-                      className="form-input"
-                      maxLength="16"
-                    />
-                  </div>
-                  <div className="form-row-2">
-                    <input
-                      type="text"
-                      name="cardExpiry"
-                      placeholder="MM/YY"
-                      value={formData.cardExpiry}
-                      onChange={handleInputChange}
-                      className="form-input"
-                    />
-                    <input
-                      type="text"
-                      name="cardCVC"
-                      placeholder="CVC"
-                      value={formData.cardCVC}
-                      onChange={handleInputChange}
-                      className="form-input"
-                      maxLength="3"
-                    />
-                  </div>
-                </form>
-              )}
             </CheckoutStep>
           )}
 

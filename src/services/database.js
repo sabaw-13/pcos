@@ -1,4 +1,4 @@
-import { onValue, push, ref, serverTimestamp, set, update } from 'firebase/database';
+import { onValue, push, ref, remove, serverTimestamp, set, update } from 'firebase/database';
 import { database } from './firebase';
 
 const toList = (snapshot) => {
@@ -46,3 +46,5 @@ export const updateOrderStatus = (orderId, status) =>
     status,
     updatedAt: serverTimestamp()
   });
+
+export const deleteOrder = (orderId) => remove(ref(database, `orders/${orderId}`));

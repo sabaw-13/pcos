@@ -1,9 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../context/authcontext';
+import { useConfirm } from '../context/confirmcontext';
 import { baseMenuItems, menuCategories } from '../data/menudata';
 import {
   addMenuItem,
+  deleteOrder,
   subscribeMenuItems,
   subscribeOrders,
   updateOrderStatus
@@ -42,14 +44,45 @@ const adminTabs = [
   }
 ];
 
+const orderWorkflowTabs = [
+  {
+    id: 'receiving',
+    label: 'Receiving',
+    statuses: ['Waiting', 'Pending'],
+    emptyText: 'No orders waiting to be received.'
+  },
+  {
+    id: 'preparing',
+    label: 'Preparing Food',
+    statuses: ['Received', 'Preparing'],
+    emptyText: 'No orders in food preparation.'
+  },
+  {
+    id: 'delivery',
+    label: 'Delivery',
+    statuses: ['Delivering'],
+    emptyText: 'No orders out for delivery.'
+  },
+  {
+    id: 'completed',
+    label: 'Completed History',
+    statuses: ['Completed'],
+    emptyText: 'No completed orders yet.'
+  }
+];
+
 const Admin = () => {
   const { authLoading, currentUser, isAdmin } = useAuth();
+  const { confirm } = useConfirm();
   const [orders, setOrders] = useState([]);
   const [customMenuItems, setCustomMenuItems] = useState([]);
   const [itemForm, setItemForm] = useState(emptyItemForm);
   const [dbError, setDbError] = useState('');
   const [savingItem, setSavingItem] = useState(false);
+  const [deletingOrderId, setDeletingOrderId] = useState('');
+  const [updatingOrderId, setUpdatingOrderId] = useState('');
   const [activeTab, setActiveTab] = useState('orders');
+  const [activeOrderTab, setActiveOrderTab] = useState('receiving');
 
   const inventoryItems = useMemo(
     () => [...baseMenuItems, ...customMenuItems],
@@ -58,6 +91,9 @@ const Admin = () => {
 
   const waitingOrders = orders.filter((order) => order.status === 'Waiting').length;
   const lowStockItems = inventoryItems.filter((item) => Number(item.stock || 0) <= 12).length;
+
+  const getOrderWorkflowCount = (tab) =>
+    orders.filter((order) => tab.statuses.includes(order.status)).length;
 
   useEffect(() => {
     if (authLoading || !isAdmin) {
@@ -99,11 +135,134 @@ const Admin = () => {
     return <Navigate to="/login" replace />;
   }
 
-  const handleReceiveOrder = async (orderId) => {
+  const handleReceiveOrder = async (order) => {
+    const confirmed = await confirm({
+      title: 'Receive this order?',
+      description: `${order.orderNumber || 'This order'} will move to the food preparation workflow.`,
+      confirmText: 'Receive Order',
+      cancelText: 'Not Yet',
+      tone: 'default'
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
+    await handleUpdateOrderStatus(order.firebaseId, 'Received');
+  };
+
+  const handleUpdateOrderStatus = async (orderId, status) => {
     try {
-      await updateOrderStatus(orderId, 'Received');
+      setUpdatingOrderId(orderId);
+      setDbError('');
+      await updateOrderStatus(orderId, status);
     } catch (error) {
       setDbError('Unable to update this order in Firebase.');
+    } finally {
+      setUpdatingOrderId('');
+    }
+  };
+
+  const handleDeleteOrder = async (order) => {
+    const confirmed = await confirm({
+      title: 'Delete completed order?',
+      description: `${order.orderNumber || 'This order'} will be permanently removed from the order list.`,
+      confirmText: 'Delete Order',
+      cancelText: 'Keep Order',
+      tone: 'danger'
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setDeletingOrderId(order.firebaseId);
+      setDbError('');
+      await deleteOrder(order.firebaseId);
+    } catch (error) {
+      setDbError('Unable to delete this order from Firebase.');
+    } finally {
+      setDeletingOrderId('');
+    }
+  };
+
+  const handleCustomerReceivedOrder = async (order) => {
+    const confirmed = await confirm({
+      title: 'Customer received this order?',
+      description: `${order.orderNumber || 'This order'} will be marked completed because the customer already received it.`,
+      confirmText: 'Mark Completed',
+      cancelText: 'Not Yet',
+      tone: 'default'
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
+    await handleUpdateOrderStatus(order.firebaseId, 'Completed');
+  };
+
+  const renderOrderAction = (order) => {
+    const isUpdating = updatingOrderId === order.firebaseId;
+
+    switch (order.status) {
+      case 'Received':
+        return (
+          <button
+            type="button"
+            className="btn btn-primary btn-small"
+            onClick={() => handleUpdateOrderStatus(order.firebaseId, 'Preparing')}
+            disabled={isUpdating}
+          >
+            {isUpdating ? 'Updating...' : 'Food Preparation'}
+          </button>
+        );
+      case 'Preparing':
+        return (
+          <button
+            type="button"
+            className="btn btn-primary btn-small"
+            onClick={() => handleUpdateOrderStatus(order.firebaseId, 'Delivering')}
+            disabled={isUpdating}
+          >
+            {isUpdating ? 'Updating...' : 'Delivery'}
+          </button>
+        );
+      case 'Delivering':
+        return (
+          <button
+            type="button"
+            className="btn btn-primary btn-small"
+            onClick={() => handleCustomerReceivedOrder(order)}
+            disabled={isUpdating}
+          >
+            {isUpdating ? 'Updating...' : 'Customer Received'}
+          </button>
+        );
+      case 'Completed':
+        return (
+          <button
+            type="button"
+            className="btn btn-danger btn-small"
+            onClick={() => handleDeleteOrder(order)}
+            disabled={deletingOrderId === order.firebaseId}
+          >
+            {deletingOrderId === order.firebaseId ? 'Deleting...' : 'Delete'}
+          </button>
+        );
+      case 'Waiting':
+      default:
+        return (
+          <button
+            type="button"
+            className="btn btn-primary btn-small"
+            onClick={() => handleReceiveOrder(order)}
+            disabled={isUpdating}
+          >
+            {isUpdating ? 'Updating...' : 'Receive'}
+          </button>
+        );
     }
   };
 
@@ -148,44 +307,62 @@ const Admin = () => {
     }
   };
 
-  const renderOrdersPanel = () => (
-    <section className="admin-panel admin-tab-panel">
-      <div className="admin-panel-header">
-        <h2>{adminTabs[0].title}</h2>
-        <p>{adminTabs[0].description}</p>
-      </div>
+  const renderOrdersPanel = () => {
+    const currentWorkflowTab =
+      orderWorkflowTabs.find((tab) => tab.id === activeOrderTab) || orderWorkflowTabs[0];
+    const filteredOrders = orders.filter((order) =>
+      currentWorkflowTab.statuses.includes(order.status)
+    );
 
-      <div className="staff-orders">
-        {orders.length === 0 ? (
-          <div className="admin-empty-state">No customer orders yet.</div>
-        ) : (
-          orders.map((order) => (
-            <article key={order.id} className="staff-order-card">
-              <div>
-                <h3>{order.orderNumber}</h3>
-                <p>{order.customer} - {order.service}</p>
-                <small>{(order.items || []).join(', ')}</small>
-              </div>
-              <div className="staff-order-actions">
-                <span className={`staff-status status-${String(order.status).toLowerCase()}`}>
-                  {order.status}
-                </span>
-                {order.status !== 'Received' && (
-                  <button
-                    type="button"
-                    className="btn btn-primary btn-small"
-                    onClick={() => handleReceiveOrder(order.firebaseId)}
-                  >
-                    Receive
-                  </button>
-                )}
-              </div>
-            </article>
-          ))
-        )}
-      </div>
-    </section>
-  );
+    return (
+      <section className="admin-panel admin-tab-panel">
+        <div className="admin-panel-header">
+          <h2>{adminTabs[0].title}</h2>
+          <p>{adminTabs[0].description}</p>
+        </div>
+
+        <div className="admin-order-tabs" role="tablist" aria-label="Order workflow">
+          {orderWorkflowTabs.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              aria-selected={activeOrderTab === tab.id}
+              className={`admin-order-tab ${activeOrderTab === tab.id ? 'active' : ''}`}
+              onClick={() => setActiveOrderTab(tab.id)}
+            >
+              <span>{tab.label}</span>
+              <strong>{getOrderWorkflowCount(tab)}</strong>
+            </button>
+          ))}
+        </div>
+
+        <div className="staff-orders">
+          {orders.length === 0 ? (
+            <div className="admin-empty-state">No customer orders yet.</div>
+          ) : filteredOrders.length === 0 ? (
+            <div className="admin-empty-state">{currentWorkflowTab.emptyText}</div>
+          ) : (
+            filteredOrders.map((order) => (
+              <article key={order.id} className="staff-order-card">
+                <div>
+                  <h3>{order.orderNumber}</h3>
+                  <p>{order.customer} - {order.service}</p>
+                  <small>{(order.items || []).join(', ')}</small>
+                </div>
+                <div className="staff-order-actions">
+                  <span className={`staff-status status-${String(order.status).toLowerCase()}`}>
+                    {order.status}
+                  </span>
+                  {renderOrderAction(order)}
+                </div>
+              </article>
+            ))
+          )}
+        </div>
+      </section>
+    );
+  };
 
   const renderAddItemPanel = () => (
     <section className="admin-panel admin-tab-panel">

@@ -5,17 +5,18 @@ export const CartContext = createContext();
 export const CartProvider = ({ children }) => {
   const [cart, setCart] = useState([]);
 
-  const addToCart = (item) => {
+  const addToCart = (item, quantity = 1) => {
     const existingItem = cart.find(cartItem => cartItem.id === item.id);
+    const quantityToAdd = Math.max(1, Number(quantity) || 1);
 
     if (existingItem) {
       setCart(cart.map(cartItem =>
         cartItem.id === item.id
-          ? { ...cartItem, quantity: cartItem.quantity + 1 }
+          ? { ...cartItem, quantity: cartItem.quantity + quantityToAdd }
           : cartItem
       ));
     } else {
-      setCart([...cart, { ...item, quantity: 1 }]);
+      setCart([...cart, { ...item, quantity: quantityToAdd }]);
     }
   };
 
