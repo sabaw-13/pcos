@@ -9,7 +9,7 @@ const Footer = () => {
       <div className="footer-container">
         <div className="footer-content">
           <div className="footer-section">
-            <h3 className="footer-title">About Persimonay</h3>
+            <h3 className="footer-title">About Persimmonay</h3>
             <p className="footer-text">
               Crafting the perfect cup of coffee and delicious pastries since 2024.
             </p>
@@ -31,7 +31,7 @@ const Footer = () => {
               <br />
               (555) 123-4567
               <br />
-              hello@persimonay.com
+              hello@persimmonay.com
             </p>
           </div>
 
@@ -48,7 +48,7 @@ const Footer = () => {
         <div className="footer-divider"></div>
 
         <div className="footer-bottom">
-          <p className="copyright">&copy; {currentYear} Persimonay Cafe. All rights reserved.</p>
+          <p className="copyright">&copy; {currentYear} Persimmonay Cafe. All rights reserved.</p>
           <div className="social-links">
             <a href="https://facebook.com" className="social-link">Facebook</a>
             <a href="https://instagram.com" className="social-link">Instagram</a>

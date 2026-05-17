@@ -74,7 +74,7 @@ export const baseMenuItems = [
   },
   {
     id: 8,
-    name: 'Litson Kawali',
+    name: 'Lechon Kawali',
     price: 150,
     category: 'rice-bowls',
     description: 'Crispy pork belly over steamed rice',

@@ -6,7 +6,7 @@ import { subscribeOrders } from '../services/database';
 const trackingSteps = [
   {
     label: 'Order sent',
-    description: 'Your delivery request was sent to Persimonay Cafe.'
+    description: 'Your delivery request was sent to Persimmonay Cafe.'
   },
   {
     label: 'Cafe received',

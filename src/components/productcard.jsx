@@ -1,4 +1,5 @@
 import React, { useContext, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { CartContext } from '../context/cartcontext';
 import CategoryIcon from './categoryicon';
 
@@ -87,7 +88,7 @@ const ProductCard = ({ item }) => {
         </div>
       </div>
 
-      {showQuantityModal && (
+      {showQuantityModal && createPortal(
         <div className="quantity-modal-overlay" role="presentation" onClick={handleCloseQuantityModal}>
           <div
             className="quantity-modal"
@@ -132,7 +133,8 @@ const ProductCard = ({ item }) => {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

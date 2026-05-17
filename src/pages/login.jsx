@@ -82,7 +82,7 @@ const Login = () => {
   return (
     <div className="login-page">
       <div className="login-card">
-        <span className="service-eyebrow">Persimonay account</span>
+        <span className="service-eyebrow">Persimmonay account</span>
         <h1>{authMode === 'signup' ? 'Create Account' : 'Log In'}</h1>
         <p>
           {authMode === 'signup'

@@ -11,8 +11,8 @@ const Navbar = () => {
 
   const navItems = isCustomer
     ? [
-        { path: '/menu', label: 'Online Delivery', mobileLabel: 'Delivery' },
-        { path: '/reservation', label: 'Online Reservation', mobileLabel: 'Reserve' },
+        { path: '/menu', label: 'Delivery', mobileLabel: 'Delivery' },
+        { path: '/reservation', label: 'Reservation', mobileLabel: 'Reserve' },
         { path: '/cart', label: 'Cart', mobileLabel: 'Cart' },
         { path: '/order-history', label: 'Orders', mobileLabel: 'Orders' }
       ]
@@ -55,7 +55,7 @@ const Navbar = () => {
           <div className="navbar-primary">
             <Link to="/" className="navbar-logo">
               <span className="logo-icon">PC</span>
-              <span className="logo-text">Persimonay</span>
+              <span className="logo-text">Persimmonay</span>
             </Link>
 
             {navItems.length > 0 && (

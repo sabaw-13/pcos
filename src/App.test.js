@@ -42,5 +42,5 @@ test('renders the cafe info page as the index route', () => {
   render(<App />);
   expect(screen.getByRole('heading', { name: /savor the flavor/i })).toBeInTheDocument();
   expect(screen.getByRole('link', { name: /open user account/i })).toBeInTheDocument();
-  expect(screen.getByText(/persimonay signature experience/i)).toBeInTheDocument();
+  expect(screen.getByText(/persimmonay signature experience/i)).toBeInTheDocument();
 });

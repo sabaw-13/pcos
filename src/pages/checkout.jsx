@@ -16,7 +16,6 @@ const Checkout = () => {
     phone: '',
     address: '',
     city: '',
-    zipCode: '',
     paymentMethod: 'cod'
   });
 
@@ -30,7 +29,7 @@ const Checkout = () => {
   const tax = subtotal * 0.08;
   const total = subtotal + tax;
 
-  const deliveryFields = ['name', 'email', 'phone', 'address', 'city', 'zipCode'];
+  const deliveryFields = ['name', 'email', 'phone', 'address', 'city'];
   const paymentFields = [];
 
   const filledDeliveryFields = deliveryFields.filter((field) => formData[field].trim() !== '').length;
@@ -115,8 +114,7 @@ const Checkout = () => {
         },
         deliveryAddress: {
           street: formData.address,
-          city: formData.city,
-          zipCode: formData.zipCode
+          city: formData.city
         },
         paymentMethod: formData.paymentMethod
       });
@@ -236,21 +234,12 @@ const Checkout = () => {
                     required
                   />
                 </div>
-                <div className="form-row-2">
+                <div className="form-row">
                   <input
                     type="text"
                     name="city"
                     placeholder="City"
                     value={formData.city}
-                    onChange={handleInputChange}
-                    className="form-input"
-                    required
-                  />
-                  <input
-                    type="text"
-                    name="zipCode"
-                    placeholder="Zip Code"
-                    value={formData.zipCode}
                     onChange={handleInputChange}
                     className="form-input"
                     required
@@ -320,7 +309,7 @@ const Checkout = () => {
                   <h3>Delivery Details</h3>
                   <p><strong>{formData.name}</strong></p>
                   <p>{formData.address}</p>
-                  <p>{formData.city}, {formData.zipCode}</p>
+                  <p>{formData.city}</p>
                   <p className="contact">{formData.phone}</p>
                 </div>
               </div>
