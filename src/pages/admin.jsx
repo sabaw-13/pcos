@@ -60,7 +60,7 @@ const orderWorkflowTabs = [
   {
     id: 'delivery',
     label: 'Delivery',
-    statuses: ['Delivering'],
+    statuses: ['Delivering', 'Customer Received'],
     emptyText: 'No orders out for delivery.'
   },
   {
@@ -83,6 +83,7 @@ const Admin = () => {
   const [updatingOrderId, setUpdatingOrderId] = useState('');
   const [activeTab, setActiveTab] = useState('orders');
   const [activeOrderTab, setActiveOrderTab] = useState('receiving');
+  const [selectedOrder, setSelectedOrder] = useState(null);
 
   const inventoryItems = useMemo(
     () => [...baseMenuItems, ...customMenuItems],
@@ -94,6 +95,9 @@ const Admin = () => {
 
   const getOrderWorkflowCount = (tab) =>
     orders.filter((order) => tab.statuses.includes(order.status)).length;
+
+  const getStatusClass = (status) =>
+    `status-${String(status).toLowerCase().replace(/\s+/g, '-')}`;
 
   useEffect(() => {
     if (authLoading || !isAdmin) {
@@ -149,6 +153,7 @@ const Admin = () => {
     }
 
     await handleUpdateOrderStatus(order.firebaseId, 'Received');
+    setSelectedOrder(null);
   };
 
   const handleUpdateOrderStatus = async (orderId, status) => {
@@ -187,10 +192,26 @@ const Admin = () => {
     }
   };
 
-  const handleCustomerReceivedOrder = async (order) => {
+  const getOrderAddress = (order) => {
+    const addressParts = [
+      order.deliveryAddress?.street,
+      order.deliveryAddress?.city,
+      order.deliveryAddress?.zipCode
+    ].filter(Boolean);
+
+    return addressParts.length > 0 ? addressParts.join(', ') : 'No delivery address saved';
+  };
+
+  const getPaymentMethodLabel = (paymentMethod) => {
+    if (paymentMethod === 'cod') return 'Cash on Delivery';
+    if (paymentMethod === 'gcash') return 'GCash';
+    return paymentMethod || 'Not specified';
+  };
+
+  const handleCompleteCustomerReceivedOrder = async (order) => {
     const confirmed = await confirm({
-      title: 'Customer received this order?',
-      description: `${order.orderNumber || 'This order'} will be marked completed because the customer already received it.`,
+      title: 'Complete this order?',
+      description: `${order.orderNumber || 'This order'} was marked received by the customer and will move to completed history.`,
       confirmText: 'Mark Completed',
       cancelText: 'Not Yet',
       tone: 'default'
@@ -231,13 +252,19 @@ const Admin = () => {
         );
       case 'Delivering':
         return (
+          <span className="staff-action-note">
+            Waiting for customer to mark received
+          </span>
+        );
+      case 'Customer Received':
+        return (
           <button
             type="button"
             className="btn btn-primary btn-small"
-            onClick={() => handleCustomerReceivedOrder(order)}
+            onClick={() => handleCompleteCustomerReceivedOrder(order)}
             disabled={isUpdating}
           >
-            {isUpdating ? 'Updating...' : 'Customer Received'}
+            {isUpdating ? 'Updating...' : 'Mark Completed'}
           </button>
         );
       case 'Completed':
@@ -257,13 +284,95 @@ const Admin = () => {
           <button
             type="button"
             className="btn btn-primary btn-small"
-            onClick={() => handleReceiveOrder(order)}
+            onClick={() => setSelectedOrder(order)}
             disabled={isUpdating}
           >
-            {isUpdating ? 'Updating...' : 'Receive'}
+            {isUpdating ? 'Updating...' : 'View Details'}
           </button>
         );
     }
+  };
+
+  const renderOrderDetailsModal = () => {
+    if (!selectedOrder) {
+      return null;
+    }
+
+    return (
+      <div
+        className="admin-order-modal-overlay"
+        role="presentation"
+        onClick={() => setSelectedOrder(null)}
+      >
+        <div
+          className="admin-order-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="admin-order-modal-title"
+          onClick={(event) => event.stopPropagation()}
+        >
+          <div className="admin-order-modal-header">
+            <span className={`staff-status ${getStatusClass(selectedOrder.status)}`}>
+              {selectedOrder.status}
+            </span>
+            <h2 id="admin-order-modal-title">{selectedOrder.orderNumber}</h2>
+            <p>{selectedOrder.customer} - {selectedOrder.service || 'Online Delivery'}</p>
+          </div>
+
+          <div className="admin-order-detail-grid">
+            <div>
+              <span>Customer</span>
+              <strong>{selectedOrder.customer || 'Not provided'}</strong>
+            </div>
+            <div>
+              <span>Phone</span>
+              <strong>{selectedOrder.contact?.phone || 'Not provided'}</strong>
+            </div>
+            <div>
+              <span>Email</span>
+              <strong>{selectedOrder.contact?.email || 'Not provided'}</strong>
+            </div>
+            <div>
+              <span>Payment</span>
+              <strong>{getPaymentMethodLabel(selectedOrder.paymentMethod)}</strong>
+            </div>
+            <div className="admin-order-detail-wide">
+              <span>Delivery address</span>
+              <strong>{getOrderAddress(selectedOrder)}</strong>
+            </div>
+          </div>
+
+          <div className="admin-order-items-panel">
+            <h3>Order Items</h3>
+            <ul>
+              {(selectedOrder.items || []).map((item, index) => (
+                <li key={`${item}-${index}`}>{item}</li>
+              ))}
+            </ul>
+            <div className="admin-order-total">
+              <span>Total</span>
+              <strong>P{Number(selectedOrder.total || 0).toFixed(2)}</strong>
+            </div>
+          </div>
+
+          <div className="admin-order-modal-actions">
+            <button type="button" className="btn btn-secondary" onClick={() => setSelectedOrder(null)}>
+              Close
+            </button>
+            {['Waiting', 'Pending'].includes(selectedOrder.status) && (
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => handleReceiveOrder(selectedOrder)}
+                disabled={updatingOrderId === selectedOrder.firebaseId}
+              >
+                {updatingOrderId === selectedOrder.firebaseId ? 'Accepting...' : 'Accept Delivery'}
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
   };
 
   const handleItemInputChange = (event) => {
@@ -351,7 +460,7 @@ const Admin = () => {
                   <small>{(order.items || []).join(', ')}</small>
                 </div>
                 <div className="staff-order-actions">
-                  <span className={`staff-status status-${String(order.status).toLowerCase()}`}>
+                  <span className={`staff-status ${getStatusClass(order.status)}`}>
                     {order.status}
                   </span>
                   {renderOrderAction(order)}
@@ -539,6 +648,8 @@ const Admin = () => {
           </button>
         ))}
       </nav>
+
+      {renderOrderDetailsModal()}
     </div>
   );
 };

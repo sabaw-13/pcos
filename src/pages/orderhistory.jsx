@@ -1,7 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/authcontext';
-import { subscribeOrders } from '../services/database';
+import { useConfirm } from '../context/confirmcontext';
+import { subscribeOrders, updateOrderStatus } from '../services/database';
+
+const cafeLocation = {
+  name: 'Persimmonay Cafe',
+  latitude: 11.04222563458401,
+  longitude: 122.06720001912616
+};
 
 const trackingSteps = [
   {
@@ -21,8 +28,12 @@ const trackingSteps = [
     description: 'Your order is on the way to your delivery address.'
   },
   {
+    label: 'Order received',
+    description: 'You confirmed that the order arrived.'
+  },
+  {
     label: 'Completed',
-    description: 'The customer has received the order.'
+    description: 'The cafe marked the order completed.'
   }
 ];
 
@@ -32,7 +43,8 @@ const statusStepMap = {
   Received: 1,
   Preparing: 2,
   Delivering: 3,
-  Completed: 4
+  'Customer Received': 4,
+  Completed: 5
 };
 
 const getTrackingIndex = (status) => statusStepMap[status] ?? 0;
@@ -45,6 +57,8 @@ const getTrackingMessage = (order) => {
       return 'The cafe is preparing your order now.';
     case 'Delivering':
       return 'Your food is being delivered.';
+    case 'Customer Received':
+      return 'You marked this order received. The cafe will complete it soon.';
     case 'Completed':
       return 'You have received your order.';
     case 'Cancelled':
@@ -66,7 +80,11 @@ const getDeliveryAddress = (order) => {
 };
 
 const getEstimatedTime = (order) => {
-  if (order.status === 'Completed' || order.status === 'Cancelled') {
+  if (
+    order.status === 'Customer Received' ||
+    order.status === 'Completed' ||
+    order.status === 'Cancelled'
+  ) {
     return 'No active estimate';
   }
 
@@ -82,11 +100,40 @@ const getEstimatedTime = (order) => {
   });
 };
 
+const getDistanceInKm = (from, to) => {
+  const earthRadiusKm = 6371;
+  const toRadians = (degrees) => degrees * (Math.PI / 180);
+  const latitudeDistance = toRadians(to.latitude - from.latitude);
+  const longitudeDistance = toRadians(to.longitude - from.longitude);
+  const startLatitude = toRadians(from.latitude);
+  const endLatitude = toRadians(to.latitude);
+
+  const haversine =
+    Math.sin(latitudeDistance / 2) ** 2 +
+    Math.cos(startLatitude) * Math.cos(endLatitude) * Math.sin(longitudeDistance / 2) ** 2;
+
+  return earthRadiusKm * 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
+};
+
+const getTravelEstimate = (distanceKm) => {
+  const averageDeliverySpeedKph = 24;
+  const travelMinutes = Math.max(5, Math.round((distanceKm / averageDeliverySpeedKph) * 60));
+  const lowEstimate = Math.max(5, travelMinutes - 3);
+  const highEstimate = travelMinutes + 5;
+
+  return `${lowEstimate}-${highEstimate} minutes`;
+};
+
 const OrderHistory = () => {
   const { currentUser, isAdmin } = useAuth();
+  const { confirm } = useConfirm();
   const [orders, setOrders] = useState([]);
   const [ordersError, setOrdersError] = useState('');
   const [trackedOrderIds, setTrackedOrderIds] = useState({});
+  const [receivingOrderId, setReceivingOrderId] = useState('');
+  const [customerLocation, setCustomerLocation] = useState(null);
+  const [locationError, setLocationError] = useState('');
+  const [locatingCustomer, setLocatingCustomer] = useState(false);
 
   useEffect(() => {
     if (!currentUser || isAdmin) {
@@ -107,6 +154,7 @@ const OrderHistory = () => {
   const getStatusColor = (status) => {
     switch(status) {
       case 'Completed':
+      case 'Customer Received':
         return 'status-completed';
       case 'Received':
         return 'status-completed';
@@ -130,9 +178,65 @@ const OrderHistory = () => {
     }));
   };
 
+  const handleMarkOrderReceived = async (order) => {
+    const confirmed = await confirm({
+      title: 'Order received?',
+      description: `${order.orderNumber || 'This order'} will be marked received and the cafe can complete it.`,
+      confirmText: 'Order Received',
+      cancelText: 'Not Yet',
+      tone: 'default'
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setReceivingOrderId(order.firebaseId);
+      setOrdersError('');
+      await updateOrderStatus(order.firebaseId, 'Customer Received');
+    } catch (error) {
+      setOrdersError('Unable to mark this order received right now.');
+    } finally {
+      setReceivingOrderId('');
+    }
+  };
+
+  const handleUseCustomerLocation = () => {
+    if (!navigator.geolocation) {
+      setLocationError('Location is not supported by this browser.');
+      return;
+    }
+
+    setLocatingCustomer(true);
+    setLocationError('');
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setCustomerLocation({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude
+        });
+        setLocatingCustomer(false);
+      },
+      () => {
+        setLocationError('Unable to get your location. Please allow location access and try again.');
+        setLocatingCustomer(false);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 60000
+      }
+    );
+  };
+
   const renderTrackingPanel = (order) => {
     const currentStepIndex = getTrackingIndex(order.status);
     const isCancelled = order.status === 'Cancelled';
+    const distanceKm = customerLocation
+      ? getDistanceInKm(cafeLocation, customerLocation)
+      : null;
 
     return (
       <div className="order-tracking-panel" id={`tracking-${order.id}`}>
@@ -179,6 +283,47 @@ const OrderHistory = () => {
             <strong>{getDeliveryAddress(order)}</strong>
           </div>
         </div>
+
+        <div className="tracking-location-card">
+          <div>
+            <span>Cafe location</span>
+            <strong>
+              {cafeLocation.name} ({cafeLocation.latitude.toFixed(6)}, {cafeLocation.longitude.toFixed(6)})
+            </strong>
+          </div>
+          <div>
+            <span>Your distance</span>
+            <strong>
+              {distanceKm ? `${distanceKm.toFixed(1)} km from the cafe` : 'Use your location to calculate'}
+            </strong>
+          </div>
+          <div>
+            <span>Estimated travel time</span>
+            <strong>{distanceKm ? getTravelEstimate(distanceKm) : 'Waiting for your location'}</strong>
+          </div>
+          <button
+            type="button"
+            className="btn btn-secondary btn-small"
+            onClick={handleUseCustomerLocation}
+            disabled={locatingCustomer}
+          >
+            {locatingCustomer ? 'Locating...' : 'Use My Location'}
+          </button>
+        </div>
+        {locationError && <p className="checkout-error">{locationError}</p>}
+        {order.status === 'Delivering' && (
+          <div className="tracking-received-action">
+            <p>Tap this only after your delivery arrives.</p>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => handleMarkOrderReceived(order)}
+              disabled={receivingOrderId === order.firebaseId}
+            >
+              {receivingOrderId === order.firebaseId ? 'Updating...' : 'Order Received'}
+            </button>
+          </div>
+        )}
       </div>
     );
   };
