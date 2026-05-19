@@ -23,9 +23,14 @@ const Landing = () => {
   }, []);
 
   const menuImageByCategory = {
+    appetizers: '/images/p3.jpg',
+    'ramen-regular': '/images/p1.jpg',
+    'ramen-special': '/images/p1.jpg',
     drinks: '/images/p4.jpg',
     'burger-sandwiches': '/images/p2.jpg',
-    'rice-bowls': '/images/p1.jpg'
+    'rice-bowls': '/images/p1.jpg',
+    'add-ons': '/images/p3.jpg',
+    'short-orders': '/images/p3.jpg'
   };
 
   const menuOverview = baseMenuItems.map((item) => ({
@@ -146,10 +151,10 @@ const Landing = () => {
 
               <div className="hero-buttons">
                 <Link to="/menu" className="btn btn-primary">
-                  Order Delivery
+                  Order
                 </Link>
                 <Link to="/reservation" className="btn btn-secondary hero-secondary">
-                  Reserve Online
+                  Delivery
                 </Link>
               </div>
 

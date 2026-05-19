@@ -6,8 +6,12 @@ const CartItem = ({ item, onRemove, onUpdateQuantity }) => {
     const value = String(label || '').toLowerCase();
 
     if (value.includes('drink')) return 'drinks';
+    if (value.includes('appetizer')) return 'appetizers';
+    if (value.includes('ramen')) return 'ramen';
     if (value.includes('burger') || value.includes('sandwich')) return 'burger-sandwiches';
     if (value.includes('rice')) return 'rice-bowls';
+    if (value.includes('add-on')) return 'add-ons';
+    if (value.includes('short order')) return 'short-orders';
     if (value.includes('all')) return 'all';
 
     return null;

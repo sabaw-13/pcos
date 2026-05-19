@@ -1,94 +1,108 @@
 export const menuCategories = [
   { id: 'all', name: 'All Items', icon: 'all' },
-  { id: 'drinks', name: 'Drinks', icon: 'drinks' },
-  { id: 'burger-sandwiches', name: 'Burger & Sandwiches', icon: 'burger-sandwiches' },
-  { id: 'rice-bowls', name: 'Rice Bowls', icon: 'rice-bowls' }
+  { id: 'appetizers', name: 'Appetizers', icon: 'appetizers' },
+  { id: 'ramen-regular', name: 'Ramen Regular', icon: 'ramen' },
+  { id: 'ramen-special', name: 'Ramen Special', icon: 'ramen' },
+  { id: 'burger-sandwiches', name: 'Burgers & Sandwiches', icon: 'burger-sandwiches' },
+  { id: 'rice-bowls', name: 'Rice Bowls', icon: 'rice-bowls' },
+  { id: 'add-ons', name: 'Add-ons', icon: 'add-ons' },
+  { id: 'short-orders', name: 'Short Orders', icon: 'short-orders' },
+  { id: 'drinks', name: 'Drinks', icon: 'drinks' }
 ];
 
+const createMenuItem = (id, name, price, category, description, image, stock = 20, popular = false) => ({
+  id,
+  name,
+  price,
+  category,
+  description,
+  image,
+  stock,
+  popular
+});
+
 export const baseMenuItems = [
-  {
-    id: 1,
-    name: 'Strawberry Milkshake',
-    price: 65,
-    category: 'drinks',
-    description: '16oz freshly blended strawberry milkshake',
-    image: 'Drink',
-    stock: 24,
-    popular: true
-  },
-  {
-    id: 2,
-    name: 'Chocolate Milkshake',
-    price: 65,
-    category: 'drinks',
-    description: '16oz rich chocolate milkshake',
-    image: 'Drink',
-    stock: 22
-  },
-  {
-    id: 3,
-    name: 'Matcha Milkshake',
-    price: 65,
-    category: 'drinks',
-    description: '16oz creamy matcha milkshake',
-    image: 'Drink',
-    stock: 18
-  },
-  {
-    id: 4,
-    name: 'Chicken Sandwich',
-    price: 130,
-    category: 'burger-sandwiches',
-    description: 'Crispy chicken sandwich with signature sauce',
-    image: 'Burger',
-    stock: 15,
-    popular: true
-  },
-  {
-    id: 5,
-    name: 'PersiHotdog Sandwich',
-    price: 115,
-    category: 'burger-sandwiches',
-    description: 'House-style hotdog sandwich',
-    image: 'Burger',
-    stock: 16
-  },
-  {
-    id: 6,
-    name: 'Angus Cheese Burger',
-    price: 180,
-    category: 'burger-sandwiches',
-    description: 'Juicy angus patty with melted cheese',
-    image: 'Burger',
-    stock: 12,
-    popular: true
-  },
-  {
-    id: 7,
-    name: 'Hungarian Sausage',
-    price: 150,
-    category: 'rice-bowls',
-    description: 'Savory hungarian sausage rice bowl',
-    image: 'Rice',
-    stock: 14
-  },
-  {
-    id: 8,
-    name: 'Lechon Kawali',
-    price: 150,
-    category: 'rice-bowls',
-    description: 'Crispy pork belly over steamed rice',
-    image: 'Rice',
-    stock: 10
-  },
-  {
-    id: 9,
-    name: 'Sisig Rice Bowl',
-    price: 150,
-    category: 'rice-bowls',
-    description: 'Sizzling sisig served with rice',
-    image: 'Rice',
-    stock: 13,
-    popular: true
-  }
+  createMenuItem(1, 'Vegetable Cheezy Nachos', 135, 'appetizers', 'Vegetable nachos topped with cheezy sauce.', 'Appetizer', 20, true),
+  createMenuItem(2, 'Spam Sticks', 95, 'appetizers', 'Crispy spam sticks served as a savory snack.', 'Appetizer'),
+  createMenuItem(3, 'Mozzarella Sticks', 105, 'appetizers', 'Golden fried mozzarella sticks with a melty center.', 'Appetizer'),
+  createMenuItem(4, 'Chicken Poppers', 105, 'appetizers', 'Bite-sized crispy chicken poppers.', 'Appetizer'),
+  createMenuItem(5, 'Classic Fries', 55, 'appetizers', 'Crispy classic fries.', 'Appetizer'),
+  createMenuItem(6, 'Cheezy Fries', 65, 'appetizers', 'Fries topped with cheezy sauce.', 'Appetizer'),
+  createMenuItem(7, 'Sour Cream Fries', 65, 'appetizers', 'Fries tossed with sour cream flavor.', 'Appetizer'),
+  createMenuItem(8, 'Barbecue Fries', 65, 'appetizers', 'Fries tossed with barbecue flavor.', 'Appetizer'),
+  createMenuItem(9, 'Cheezy Bacon Fries', 65, 'appetizers', 'Fries topped with cheezy sauce and bacon flavor.', 'Appetizer'),
+  createMenuItem(10, 'Quesadilla (3 Cheese)', 135, 'appetizers', 'Three-cheese quesadilla served warm.', 'Appetizer', 20, true),
+
+  createMenuItem(11, 'Beef Ramen (Solo)', 150, 'ramen-regular', 'Regular beef ramen solo serving.', 'Ramen', 18, true),
+  createMenuItem(12, 'Beef Ramen (Share)', 235, 'ramen-regular', 'Regular beef ramen sharing serving.', 'Ramen', 18),
+  createMenuItem(13, 'Pork Tonkatsu Ramen (Solo)', 150, 'ramen-regular', 'Regular pork tonkatsu ramen solo serving.', 'Ramen'),
+  createMenuItem(14, 'Pork Tonkatsu Ramen (Share)', 235, 'ramen-regular', 'Regular pork tonkatsu ramen sharing serving.', 'Ramen'),
+  createMenuItem(15, 'Creamy Chicken Ramen (Solo)', 150, 'ramen-regular', 'Regular creamy chicken ramen solo serving.', 'Ramen'),
+  createMenuItem(16, 'Creamy Chicken Ramen (Share)', 235, 'ramen-regular', 'Regular creamy chicken ramen sharing serving.', 'Ramen'),
+  createMenuItem(17, 'Spicy Seafood Ramen (Solo)', 150, 'ramen-regular', 'Regular spicy seafood ramen solo serving.', 'Ramen'),
+  createMenuItem(18, 'Spicy Seafood Ramen (Share)', 235, 'ramen-regular', 'Regular spicy seafood ramen sharing serving.', 'Ramen'),
+  createMenuItem(19, 'Creamy Seafood Ramen (Solo)', 150, 'ramen-regular', 'Regular creamy seafood ramen solo serving.', 'Ramen'),
+  createMenuItem(20, 'Creamy Seafood Ramen (Share)', 235, 'ramen-regular', 'Regular creamy seafood ramen sharing serving.', 'Ramen'),
+
+  createMenuItem(21, 'Gyokotsu Beef Ramen', 335, 'ramen-special', 'Special gyokotsu beef ramen.', 'Ramen', 15, true),
+  createMenuItem(22, 'Pork Tonkatsu Special Ramen', 315, 'ramen-special', 'Special pork tonkatsu ramen.', 'Ramen'),
+  createMenuItem(23, 'Chicken Katsu Ramen', 295, 'ramen-special', 'Special chicken katsu ramen.', 'Ramen'),
+  createMenuItem(24, 'Kaisen Ramen (Seafood)', 365, 'ramen-special', 'Special seafood kaisen ramen.', 'Ramen', 15, true),
+
+  createMenuItem(25, 'Aloha Burger', 145, 'burger-sandwiches', 'Burger served with fries.', 'Burger', 18, true),
+  createMenuItem(26, 'Chori Egg Burger', 135, 'burger-sandwiches', 'Chori egg burger served with fries.', 'Burger'),
+  createMenuItem(27, 'Sisig Burger', 140, 'burger-sandwiches', 'Sisig burger served with fries.', 'Burger'),
+  createMenuItem(28, 'Persimmonay Chix Deluxe', 140, 'burger-sandwiches', 'Chicken deluxe sandwich served with fries.', 'Burger', 18, true),
+  createMenuItem(29, 'Chicken Burrito', 145, 'burger-sandwiches', 'Chicken burrito served with fries.', 'Burger'),
+  createMenuItem(30, 'Angus Cheese Burger', 235, 'burger-sandwiches', 'Angus cheese burger served with fries.', 'Burger', 16, true),
+  createMenuItem(31, 'Twin Pork Sliders', 110, 'burger-sandwiches', 'Twin pork sliders served with fries.', 'Burger'),
+  createMenuItem(32, 'Crispy Chicken Sliders', 110, 'burger-sandwiches', 'Crispy chicken sliders served with fries.', 'Burger'),
+  createMenuItem(33, 'Ham and Cheese Toast', 110, 'burger-sandwiches', 'Ham and cheese toast served with fries.', 'Burger'),
+  createMenuItem(34, 'Club Sandwich', 155, 'burger-sandwiches', 'Club sandwich served with fries.', 'Burger'),
+  createMenuItem(35, 'Tuna Sandwich', 145, 'burger-sandwiches', 'Tuna sandwich served with fries.', 'Burger'),
+  createMenuItem(36, 'Chicken Sandwich', 145, 'burger-sandwiches', 'Chicken sandwich served with fries.', 'Burger'),
+  createMenuItem(37, 'Cheezy Garlic Toast', 110, 'burger-sandwiches', 'Cheezy garlic toast served with fries.', 'Burger'),
+
+  createMenuItem(38, 'Tapsilog', 110, 'rice-bowls', 'Tapa, garlic rice, and egg meal.', 'Rice', 20, true),
+  createMenuItem(39, 'Chickenlog', 110, 'rice-bowls', 'Chicken, garlic rice, and egg meal.', 'Rice'),
+  createMenuItem(40, 'Sisig Rice Bowl', 110, 'rice-bowls', 'Sisig served over rice.', 'Rice', 20, true),
+  createMenuItem(41, 'Spamsilog', 110, 'rice-bowls', 'Spam, garlic rice, and egg meal.', 'Rice'),
+  createMenuItem(42, 'Longsilog', 110, 'rice-bowls', 'Longganisa, garlic rice, and egg meal.', 'Rice'),
+  createMenuItem(43, 'Hotsilog', 110, 'rice-bowls', 'Hotdog, garlic rice, and egg meal.', 'Rice'),
+  createMenuItem(44, 'Crabsticksilog', 110, 'rice-bowls', 'Crab stick, garlic rice, and egg meal.', 'Rice'),
+  createMenuItem(45, 'Hungarian Sausage', 165, 'rice-bowls', 'Hungarian sausage served with rice.', 'Rice'),
+  createMenuItem(46, 'Pork Tonkatsu Rice Bowl', 165, 'rice-bowls', 'Pork tonkatsu served over rice.', 'Rice'),
+  createMenuItem(47, 'Lechon Kawali Rice Bowl', 165, 'rice-bowls', 'Crispy lechon kawali served with rice.', 'Rice', 16, true),
+  createMenuItem(48, 'Grilled Pork Belly', 155, 'rice-bowls', 'Grilled pork belly served with rice.', 'Rice'),
+  createMenuItem(49, 'Burger Steak', 245, 'rice-bowls', 'Burger steak served with rice.', 'Rice'),
+  createMenuItem(50, 'Garlic Pepper Beef', 245, 'rice-bowls', 'Garlic pepper beef served with rice.', 'Rice'),
+
+  createMenuItem(51, 'Garlic Rice', 45, 'add-ons', 'Add-on garlic rice.', 'Add-on'),
+  createMenuItem(52, 'Plain Rice', 25, 'add-ons', 'Add-on plain rice.', 'Add-on'),
+  createMenuItem(53, 'Egg', 35, 'add-ons', 'Add-on egg.', 'Add-on'),
+  createMenuItem(54, 'Kimchi', 40, 'add-ons', 'Add-on kimchi.', 'Add-on'),
+  createMenuItem(55, 'Add Spicy', 20, 'add-ons', 'Make your ramen spicy.', 'Add-on'),
+
+  createMenuItem(56, 'Lechon Kawali Platter', 275, 'short-orders', 'Crispy lechon kawali platter.', 'Short Order', 15, true),
+  createMenuItem(57, 'Buttered Chicken', 185, 'short-orders', 'Buttered chicken short order.', 'Short Order'),
+  createMenuItem(58, 'Pork Sisig', 185, 'short-orders', 'Pork sisig short order.', 'Short Order', 18, true),
+  createMenuItem(59, 'Mac and Cheese', 135, 'short-orders', 'Creamy mac and cheese.', 'Short Order'),
+  createMenuItem(60, 'Stir-fry Noodles', 210, 'short-orders', 'Stir-fry noodles short order.', 'Short Order'),
+  createMenuItem(61, 'Grilled Pork Platter', 210, 'short-orders', 'Grilled pork platter.', 'Short Order'),
+
+  createMenuItem(62, 'Biscoff Latte', 125, 'drinks', 'Biscoff-flavored latte.', 'Drink', 24, true),
+  createMenuItem(63, 'Biscoff Oreo', 125, 'drinks', 'Biscoff and Oreo drink.', 'Drink'),
+  createMenuItem(64, 'Tiramisu Latte', 190, 'drinks', 'Tiramisu-flavored latte.', 'Drink', 18, true),
+  createMenuItem(65, 'Milky Melon', 85, 'drinks', 'Creamy melon drink.', 'Drink'),
+  createMenuItem(66, 'Strawberry Milk', 85, 'drinks', 'Strawberry milk drink.', 'Drink'),
+  createMenuItem(67, 'Blueberry Milk', 85, 'drinks', 'Blueberry milk drink.', 'Drink'),
+  createMenuItem(68, 'Matcha Latte', 100, 'drinks', 'Creamy matcha latte.', 'Drink', 24, true),
+  createMenuItem(69, 'Chocoberry', 100, 'drinks', 'Chocolate and berry drink.', 'Drink'),
+  createMenuItem(70, 'Strawberry Matcha', 100, 'drinks', 'Strawberry and matcha drink.', 'Drink'),
+  createMenuItem(71, 'Blueberry Matcha', 100, 'drinks', 'Blueberry and matcha drink.', 'Drink'),
+  createMenuItem(72, 'Chocoloko', 100, 'drinks', 'Chocolate specialty drink.', 'Drink'),
+  createMenuItem(73, 'Milk Unicorn', 100, 'drinks', 'Colorful milk-based specialty drink.', 'Drink'),
+  createMenuItem(74, 'Strawberry Latte', 100, 'drinks', 'Strawberry-flavored latte.', 'Drink'),
+  createMenuItem(75, 'Couple Bubble', 110, 'drinks', 'Specialty bubble drink.', 'Drink'),
+  createMenuItem(76, 'Halo-halo', 110, 'drinks', 'Classic halo-halo dessert drink.', 'Drink', 20, true)
 ];

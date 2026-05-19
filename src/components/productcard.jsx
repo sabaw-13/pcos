@@ -12,8 +12,12 @@ const ProductCard = ({ item }) => {
     const label = String(value || '').toLowerCase();
 
     if (label.includes('drink')) return 'drinks';
+    if (label.includes('appetizer')) return 'appetizers';
+    if (label.includes('ramen')) return 'ramen';
     if (label.includes('burger') || label.includes('sandwich')) return 'burger-sandwiches';
     if (label.includes('rice')) return 'rice-bowls';
+    if (label.includes('add-on')) return 'add-ons';
+    if (label.includes('short order')) return 'short-orders';
 
     return 'all';
   };
@@ -24,11 +28,23 @@ const ProductCard = ({ item }) => {
     if (item.category === 'drinks') {
       return 'Smooth, refreshing, and best served chilled.';
     }
+    if (item.category === 'appetizers') {
+      return 'Snackable starters made for sharing or pairing with drinks.';
+    }
+    if (item.category === 'ramen-regular' || item.category === 'ramen-special') {
+      return 'Warm ramen bowls with rich broth and satisfying toppings.';
+    }
     if (item.category === 'burger-sandwiches') {
       return 'Made to order with rich sauces and hearty fillings.';
     }
     if (item.category === 'rice-bowls') {
       return 'Comfort meals served hot with savory flavors.';
+    }
+    if (item.category === 'add-ons') {
+      return 'Simple extras to complete your meal.';
+    }
+    if (item.category === 'short-orders') {
+      return 'Savory cafe plates cooked for bigger cravings.';
     }
     return 'Freshly prepared with quality ingredients.';
   }, [item.category]);

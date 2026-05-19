@@ -77,6 +77,19 @@ const Menu = () => {
           </div>
 
           <div className="categories-container">
+            <select
+              className="category-mobile-select"
+              value={selectedCategory}
+              onChange={(event) => setSelectedCategory(event.target.value)}
+              aria-label="Filter menu category"
+            >
+              {categories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
+            </select>
+
             <div className="categories-scroll">
               {categories.map((category) => (
                 <button

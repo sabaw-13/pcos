@@ -386,8 +386,12 @@ const Admin = () => {
 
   const resolveImageLabel = (category) => {
     if (category === 'drinks') return 'Drink';
+    if (category === 'appetizers') return 'Appetizer';
+    if (category === 'ramen-regular' || category === 'ramen-special') return 'Ramen';
     if (category === 'burger-sandwiches') return 'Burger';
     if (category === 'rice-bowls') return 'Rice';
+    if (category === 'add-ons') return 'Add-on';
+    if (category === 'short-orders') return 'Short Order';
     return 'Food';
   };
 
