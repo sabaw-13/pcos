@@ -1,6 +1,5 @@
 import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { baseMenuItems, menuCategories } from '../data/menudata';
 
 const Landing = () => {
   useEffect(() => {
@@ -22,23 +21,38 @@ const Landing = () => {
     return () => observer.disconnect();
   }, []);
 
-  const menuImageByCategory = {
-    appetizers: '/images/p3.jpg',
-    'ramen-regular': '/images/p1.jpg',
-    'ramen-special': '/images/p1.jpg',
-    drinks: '/images/p4.jpg',
-    'burger-sandwiches': '/images/p2.jpg',
-    'rice-bowls': '/images/p1.jpg',
-    'add-ons': '/images/p3.jpg',
-    'short-orders': '/images/p3.jpg'
-  };
-
-  const menuOverview = baseMenuItems.map((item) => ({
-    ...item,
-    categoryName:
-      menuCategories.find((category) => category.id === item.category)?.name || 'Menu Item',
-    image: menuImageByCategory[item.category] || '/images/p3.jpg'
-  }));
+  const menuOverview = [
+    {
+      id: 1,
+      title: 'Cafe Ambience',
+      image: '/images/persi.jpg',
+      description: 'A warm, cozy space perfect for catch-ups, work, and chill coffee breaks.'
+    },
+    {
+      id: 2,
+      title: 'Burgers & Rice Meals',
+      image: '/images/p1.jpg',
+      description: 'Hearty plates and rice meals made fresh and served hot every day.'
+    },
+    {
+      id: 3,
+      title: 'Signature Sandwich Pairings',
+      image: '/images/p2.jpg',
+      description: 'Flavor-packed sandwiches and sides that satisfy any craving.'
+    },
+    {
+      id: 4,
+      title: 'Cafe Drinks',
+      image: '/images/p4.jpg',
+      description: 'Refreshing handcrafted drinks from creamy milkshakes to iced favorites.'
+    },
+    {
+      id: 5,
+      title: 'Menu Variety',
+      image: '/images/p3.jpg',
+      description: 'From ramen bowls to burgers, rice meals, and snacks, there is something for everyone.'
+    }
+  ];
 
   const testimonials = [
     {
@@ -157,21 +171,6 @@ const Landing = () => {
                   Delivery
                 </Link>
               </div>
-
-              <div className="hero-stats">
-                <div className="hero-stat">
-                  <div className="hero-stat-value">Cafe</div>
-                  <p className="hero-stat-label">Cozy food hideout</p>
-                </div>
-                <div className="hero-stat">
-                  <div className="hero-stat-value">Delivery</div>
-                  <p className="hero-stat-label">Online ordering</p>
-                </div>
-                <div className="hero-stat">
-                  <div className="hero-stat-value">Reserve</div>
-                  <p className="hero-stat-label">Table requests</p>
-                </div>
-              </div>
             </div>
 
             <div className="hero-panel hero-photo-panel">
@@ -227,9 +226,9 @@ const Landing = () => {
       <section className="featured-section section-alt">
         <div className="section-container">
           <div className="section-header reveal-on-scroll">
-            <h2 className="section-title section-title-center">Menu Overview</h2>
+            <h2 className="section-title section-title-center">Cafe Overview</h2>
             <p className="section-subtitle section-title-center">
-              Real favorites from the Persimmonay delivery menu.
+              A quick look at our food, drinks, and cafe experience.
             </p>
           </div>
           <div className="overview-grid">
@@ -242,11 +241,7 @@ const Landing = () => {
                 <div className="overview-image-wrap">
                   <img src={item.image} alt={item.title} className="overview-image" />
                 </div>
-                <h3 className="overview-title">{item.name}</h3>
-                <div className="overview-menu-meta">
-                  <span>{item.categoryName}</span>
-                  <strong>P{Number(item.price).toFixed(2)}</strong>
-                </div>
+                <h3 className="overview-title">{item.title}</h3>
                 <p className="overview-description">{item.description}</p>
               </article>
             ))}

@@ -701,7 +701,7 @@ a {
 .overview-grid {
   display: grid;
   gap: 18px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   max-width: 1200px;
   margin: 0 auto;
 }
