@@ -2,7 +2,6 @@ import React, { useEffect, useState, useContext } from 'react';
 import { CartContext } from '../context/cartcontext';
 import ProductCard from '../components/productcard';
 import CartPreview from '../components/cartpreview';
-import CategoryIcon from '../components/categoryicon';
 import { baseMenuItems, menuCategories } from '../data/menudata';
 import { subscribeMenuItems } from '../services/database';
 
@@ -45,11 +44,6 @@ const Menu = () => {
     <div className="menu-container">
       <div className="menu-header">
         <div className="menu-header-content">
-          <div className="menu-flow-bar">
-            <span className="menu-flow-step active">1. Browse</span>
-            <span className="menu-flow-step">2. Cart</span>
-            <span className="menu-flow-step">3. Checkout</span>
-          </div>
           <h1 className="menu-title">Order Food and Drinks</h1>
           <p className="menu-description">
             Search the menu, add your items, then head to cart when you are ready.
@@ -59,20 +53,7 @@ const Menu = () => {
 
       <div className="menu-layout">
         <div className="menu-main">
-          <div className="search-container">
-            <input
-              type="text"
-              placeholder="Search items..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="search-input"
-            />
-            <span className="search-icon">
-              <SearchIcon />
-            </span>
-          </div>
-
-          <div className="categories-container">
+          <div className="menu-controls">
             <select
               className="category-mobile-select"
               value={selectedCategory}
@@ -86,19 +67,17 @@ const Menu = () => {
               ))}
             </select>
 
-            <div className="categories-scroll">
-              {categories.map((category) => (
-                <button
-                  key={category.id}
-                  onClick={() => setSelectedCategory(category.id)}
-                  className={`category-btn ${selectedCategory === category.id ? 'active' : ''}`}
-                >
-                  <span className="category-icon">
-                    <CategoryIcon type={category.icon} />
-                  </span>
-                  <span className="category-name">{category.name}</span>
-                </button>
-              ))}
+            <div className="search-container">
+              <input
+                type="text"
+                placeholder="Search items..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="search-input"
+              />
+              <span className="search-icon">
+                <SearchIcon />
+              </span>
             </div>
           </div>
 

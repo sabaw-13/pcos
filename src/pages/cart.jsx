@@ -104,17 +104,6 @@ const Cart = () => {
             </div>
           </div>
 
-          <div className="summary-info">
-            <div className="info-item">
-              <span className="info-icon">Time</span>
-              <span>Estimated delivery in 15-20 minutes</span>
-            </div>
-            <div className="info-item">
-              <span className="info-icon">Flow</span>
-              <span>Review here, then continue to checkout.</span>
-            </div>
-          </div>
-
           <Link to="/checkout" className="btn btn-primary btn-full">
             Continue to Checkout
           </Link>

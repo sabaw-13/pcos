@@ -1,7 +1,10 @@
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import CategoryIcon from './categoryicon';
 
 const CartItem = ({ item, onRemove, onUpdateQuantity }) => {
+  const [deleteRevealed, setDeleteRevealed] = useState(false);
+  const pointerStartX = useRef(null);
+
   const labelToType = (label) => {
     const value = String(label || '').toLowerCase();
 
@@ -34,41 +37,82 @@ const CartItem = ({ item, onRemove, onUpdateQuantity }) => {
     }
   };
 
+  const handlePointerDown = (event) => {
+    if (event.target.closest('button')) {
+      return;
+    }
+
+    pointerStartX.current = event.clientX;
+  };
+
+  const handlePointerUp = (event) => {
+    if (pointerStartX.current === null) {
+      return;
+    }
+
+    const swipeDistance = event.clientX - pointerStartX.current;
+
+    if (swipeDistance < -45) {
+      setDeleteRevealed(true);
+    } else if (swipeDistance > 45) {
+      setDeleteRevealed(false);
+    }
+
+    pointerStartX.current = null;
+  };
+
   return (
-    <div className="cart-item">
-      <div className="cart-item-image">
-        {iconType ? (
-          <span className="item-emoji item-icon" aria-label={`${item.image} icon`}>
-            <CategoryIcon type={iconType} />
-          </span>
-        ) : (
-          <span className="item-emoji">{item.image}</span>
-        )}
-      </div>
-
-      <div className="cart-item-details">
-        <h3 className="cart-item-name">{item.name}</h3>
-        <p className="cart-item-description">{item.description}</p>
-      </div>
-
-      <div className="cart-item-quantity">
-        <button onClick={() => handleQuantityChange(item.quantity - 1)} className="qty-btn">
-          -
-        </button>
-        <span className="qty-value">{item.quantity}</span>
-        <button onClick={() => handleQuantityChange(item.quantity + 1)} className="qty-btn">
-          +
-        </button>
-      </div>
-
-      <div className="cart-item-price">
-        <span className="item-total">P{(item.price * item.quantity).toFixed(2)}</span>
-        <span className="item-unit">P{item.price.toFixed(2)} each</span>
-      </div>
-
-      <button onClick={() => onRemove(item)} className="btn-remove" aria-label={`Remove ${item.name}`}>
+    <div className={`cart-item-swipe-shell ${deleteRevealed ? 'is-delete-revealed' : ''}`}>
+      <button
+        type="button"
+        onClick={() => onRemove(item)}
+        className="cart-item-swipe-delete"
+        aria-label={`Remove ${item.name}`}
+        tabIndex={deleteRevealed ? 0 : -1}
+      >
         <TrashIcon />
+        <span>Delete</span>
       </button>
+
+      <div
+        className="cart-item"
+        onPointerDown={handlePointerDown}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={() => {
+          pointerStartX.current = null;
+        }}
+      >
+        <div className="cart-item-image">
+          {iconType ? (
+            <span className="item-emoji item-icon" aria-label={`${item.image} icon`}>
+              <CategoryIcon type={iconType} />
+            </span>
+          ) : (
+            <span className="item-emoji">{item.image}</span>
+          )}
+        </div>
+
+        <div className="cart-item-details">
+          <h3 className="cart-item-name">{item.name}</h3>
+          <p className="cart-item-description">{item.description}</p>
+        </div>
+
+        <div className="cart-item-actions">
+          <div className="cart-item-quantity" aria-label={`${item.name} quantity`}>
+            <button onClick={() => handleQuantityChange(item.quantity - 1)} className="qty-btn">
+              -
+            </button>
+            <span className="qty-value">{item.quantity}</span>
+            <button onClick={() => handleQuantityChange(item.quantity + 1)} className="qty-btn">
+              +
+            </button>
+          </div>
+
+          <div className="cart-item-price">
+            <span className="item-total">P{(item.price * item.quantity).toFixed(2)}</span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

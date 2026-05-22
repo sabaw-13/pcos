@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/authcontext';
+import { useConfirm } from '../context/confirmcontext';
 import { addOrder, subscribeOrders, updateReservationLocation } from '../services/database';
 import {
   defaultReservationArrivalStatus,
@@ -31,6 +32,7 @@ const getGeolocationErrorMessage = (error) => {
 
 const Reservation = () => {
   const { currentUser, isAdmin } = useAuth();
+  const { confirm } = useConfirm();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -44,7 +46,6 @@ const Reservation = () => {
   const [reservationNumber, setReservationNumber] = useState('');
   const [reservationError, setReservationError] = useState('');
   const [savingReservation, setSavingReservation] = useState(false);
-  const [locationConsent, setLocationConsent] = useState(false);
   const [locationError, setLocationError] = useState('');
   const [locatingCustomer, setLocatingCustomer] = useState(false);
   const [latestLocation, setLatestLocation] = useState(null);
@@ -159,7 +160,7 @@ const Reservation = () => {
   const canShareReservationLocation = (order) =>
     Boolean(order) && isActiveReservation(order) && order.status === 'Waiting';
 
-  const handleShareActiveReservationLocation = (order) => {
+  const handleShareActiveReservationLocation = async (order) => {
     const orderId = order.firebaseId || order.id;
 
     if (!canShareReservationLocation(order)) {
@@ -171,8 +172,15 @@ const Reservation = () => {
       return;
     }
 
-    if (!locationConsent) {
-      setLocationError('Please check the consent box first, then click Share Current Location to open the browser location prompt.');
+    const agreed = await confirm({
+      title: 'Share location for this reservation?',
+      description: reservationLocationConsentText,
+      confirmText: 'I Agree',
+      cancelText: 'Not Now',
+      tone: 'default'
+    });
+
+    if (!agreed) {
       return;
     }
 
@@ -292,14 +300,6 @@ const Reservation = () => {
         <div className="reservation-confirmation">
           <span className="reservation-status">Active reservation found</span>
           <h1>Your active reservation</h1>
-          <p>
-            Track your current reservation and share your live arrival location when you are on the way.
-          </p>
-          <div className="reservation-summary">
-            <span>{activeReservation.orderNumber || 'Reservation'}</span>
-            <span>{activeReservation.reservation?.date || 'Selected date'}</span>
-            <span>{activeReservation.reservation?.time || 'Selected time'}</span>
-          </div>
           <div className="reservation-arrival-panel reservation-confirmation-tracking">
             <div className="reservation-arrival-header">
               <div>
@@ -314,18 +314,6 @@ const Reservation = () => {
               <span className="reservation-active-pill active">
                 {getReservationAvailabilityText(activeReservation)}
               </span>
-            </div>
-
-            <div className="reservation-location-consent">
-              <label>
-                <input
-                  type="checkbox"
-                  checked={locationConsent}
-                  onChange={(event) => setLocationConsent(event.target.checked)}
-                  disabled={!canShareLocation}
-                />
-                <span>{reservationLocationConsentText}</span>
-              </label>
             </div>
 
             <div className="reservation-location-actions">

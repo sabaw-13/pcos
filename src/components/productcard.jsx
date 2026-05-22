@@ -78,6 +78,15 @@ const ProductCard = ({ item }) => {
     </svg>
   );
 
+  const StarIcon = () => (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d="M12 3.8L14.55 8.96L20.25 9.79L16.13 13.81L17.1 19.49L12 16.81L6.9 19.49L7.87 13.81L3.75 9.79L9.45 8.96L12 3.8Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+
   return (
     <div className="product-card-menu">
       <div className="product-card-image">
@@ -87,7 +96,11 @@ const ProductCard = ({ item }) => {
           </span>
           <span className="menu-image-label">{item.image}</span>
         </div>
-        {item.popular && <div className="popular-badge">Popular</div>}
+        {item.popular && (
+          <div className="popular-badge popular-icon-badge" aria-label="Popular item" title="Popular">
+            <StarIcon />
+          </div>
+        )}
       </div>
 
       <div className="product-card-content">
@@ -99,7 +112,7 @@ const ProductCard = ({ item }) => {
           <span className="product-card-price">P{item.price.toFixed(2)}</span>
           <button type="button" onClick={handleOpenQuantityModal} className="btn-add-to-cart">
             <PlusIcon />
-            Add to cart
+            Add
           </button>
         </div>
       </div>

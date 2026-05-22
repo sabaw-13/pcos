@@ -266,6 +266,12 @@ const OrderHistory = ({ view = 'orders' }) => {
           <span className="tracking-refresh">Updates automatically</span>
         </div>
 
+        <div className="tracking-mobile-phase">
+          <span className="tracking-label">Current phase</span>
+          <strong>{trackingSteps[currentStepIndex]?.label || order.status}</strong>
+          <p>{getTrackingMessage(order)}</p>
+        </div>
+
         <ol className={`tracking-steps ${isCancelled ? 'tracking-cancelled' : ''}`}>
           {trackingSteps.map((step, index) => {
             const stepState =
@@ -415,7 +421,7 @@ const OrderHistory = ({ view = 'orders' }) => {
                     </button>
                     <button
                       type="button"
-                      className="btn btn-secondary btn-small"
+                      className="btn btn-primary btn-small order-track-btn"
                       aria-expanded={Boolean(trackedOrderIds[order.id])}
                       aria-controls={`tracking-${order.id}`}
                       onClick={() => toggleTracking(order.id)}
