@@ -33,7 +33,8 @@ function App() {
               <Route path="/admin" element={<Admin />} />
               <Route path="/cart" element={<Cart />} />
               <Route path="/checkout" element={<Checkout />} />
-              <Route path="/order-history" element={<OrderHistory />} />
+              <Route path="/order-history" element={<OrderHistory view="orders" />} />
+              <Route path="/history" element={<OrderHistory view="history" />} />
               <Route path="/login" element={<Login />} />
             </Routes>
             <Footer />

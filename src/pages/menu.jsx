@@ -41,10 +41,6 @@ const Menu = () => {
     return matchesCategory && matchesSearch;
   });
 
-  const cartTotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
-  const activeCategoryName =
-    categories.find((category) => category.id === selectedCategory)?.name || 'All Items';
-
   return (
     <div className="menu-container">
       <div className="menu-header">
@@ -106,18 +102,7 @@ const Menu = () => {
             </div>
           </div>
 
-          <div className="items-header">
-            <h2 className="items-count">
-              {filteredItems.length} {filteredItems.length === 1 ? 'item' : 'items'} found
-            </h2>
-            <div className="items-header-tags">
-              <span className="active-category-tag">Showing: {activeCategoryName}</span>
-              {menuError && <span className="active-category-tag">{menuError}</span>}
-              {filteredItems.some((item) => item.popular) && selectedCategory === 'all' && (
-                <span className="popular-badge">Includes Popular Items</span>
-              )}
-            </div>
-          </div>
+          {menuError && <p className="checkout-error">{menuError}</p>}
 
           {filteredItems.length > 0 ? (
             <div key={`grid-${selectedCategory}`} className="items-grid category-animate">
@@ -140,7 +125,7 @@ const Menu = () => {
           )}
         </div>
 
-        <CartPreview cartTotal={cartTotal} itemCount={cart.length} />
+        <CartPreview itemCount={cart.length} />
       </div>
     </div>
   );

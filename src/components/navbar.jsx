@@ -14,14 +14,34 @@ const Navbar = () => {
         { path: '/menu', label: 'Delivery', mobileLabel: 'Delivery' },
         { path: '/reservation', label: 'Reservation', mobileLabel: 'Reserve' },
         { path: '/cart', label: 'Cart', mobileLabel: 'Cart' },
-        { path: '/order-history', label: 'Orders', mobileLabel: 'Orders' }
+        { path: '/order-history', label: 'Orders', mobileLabel: 'Orders' },
+        { path: '/history', label: 'History', mobileLabel: 'History' }
       ]
       : isAdmin
-        ? [{ path: '/admin', label: 'Admin / Staff', mobileLabel: 'Admin' }]
+        ? [
+            { path: '/admin?tab=delivery-orders', label: 'Orders', mobileLabel: 'Orders' },
+            { path: '/admin?tab=reservations', label: 'Reservations', mobileLabel: 'Reserve' },
+            { path: '/admin?tab=add-item', label: 'Add Item', mobileLabel: 'Add Item' }
+          ]
         : [];
-  const showMobileBottomNav = navItems.length > 0 && location.pathname !== '/admin';
+  const showMobileBottomNav = navItems.length > 0;
 
-  const isActive = (path) => location.pathname === path;
+  const isActive = (path) => {
+    const [pathname, queryString] = path.split('?');
+
+    if (location.pathname !== pathname) {
+      return false;
+    }
+
+    if (!queryString) {
+      return true;
+    }
+
+    const itemTab = new URLSearchParams(queryString).get('tab');
+    const currentTab = new URLSearchParams(location.search).get('tab') || 'delivery-orders';
+
+    return itemTab === currentTab;
+  };
 
   useEffect(() => {
     document.body.classList.toggle('has-mobile-bottom-nav', showMobileBottomNav);
@@ -50,7 +70,7 @@ const Navbar = () => {
 
   return (
     <>
-      <nav className="navbar">
+      <nav className={`navbar ${isAdmin ? 'navbar-admin' : ''}`}>
         <div className="navbar-container">
           <div className="navbar-primary">
             <Link to="/" className="navbar-logo">
@@ -59,7 +79,7 @@ const Navbar = () => {
             </Link>
 
             {navItems.length > 0 && (
-              <div className="navbar-menu navbar-menu-desktop">
+              <div className={`navbar-menu navbar-menu-desktop ${isAdmin ? 'navbar-menu-admin' : ''}`}>
                 {navItems.map((item) => (
                   <Link
                     key={item.path}

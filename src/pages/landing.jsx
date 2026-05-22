@@ -165,10 +165,10 @@ const Landing = () => {
 
               <div className="hero-buttons">
                 <Link to="/menu" className="btn btn-primary">
-                  Order
+                  Delivery
                 </Link>
                 <Link to="/reservation" className="btn btn-secondary hero-secondary">
-                  Delivery
+                  Reservation
                 </Link>
               </div>
             </div>

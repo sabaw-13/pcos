@@ -2,13 +2,16 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/authcontext';
 import { useConfirm } from '../context/confirmcontext';
-import { subscribeOrders, updateOrderStatus } from '../services/database';
-
-const cafeLocation = {
-  name: 'Persimmonay Cafe',
-  latitude: 11.04222563458401,
-  longitude: 122.06720001912616
-};
+import {
+  subscribeOrders,
+  updateOrderStatus
+} from '../services/database';
+import {
+  getDistanceInKm,
+  getReservationArrivalStatus,
+  isReservationOrder,
+  restaurantLocation
+} from '../utils/reservationarrival';
 
 const trackingSteps = [
   {
@@ -100,21 +103,6 @@ const getEstimatedTime = (order) => {
   });
 };
 
-const getDistanceInKm = (from, to) => {
-  const earthRadiusKm = 6371;
-  const toRadians = (degrees) => degrees * (Math.PI / 180);
-  const latitudeDistance = toRadians(to.latitude - from.latitude);
-  const longitudeDistance = toRadians(to.longitude - from.longitude);
-  const startLatitude = toRadians(from.latitude);
-  const endLatitude = toRadians(to.latitude);
-
-  const haversine =
-    Math.sin(latitudeDistance / 2) ** 2 +
-    Math.cos(startLatitude) * Math.cos(endLatitude) * Math.sin(longitudeDistance / 2) ** 2;
-
-  return earthRadiusKm * 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
-};
-
 const getTravelEstimate = (distanceKm) => {
   const averageDeliverySpeedKph = 24;
   const travelMinutes = Math.max(5, Math.round((distanceKm / averageDeliverySpeedKph) * 60));
@@ -124,7 +112,7 @@ const getTravelEstimate = (distanceKm) => {
   return `${lowEstimate}-${highEstimate} minutes`;
 };
 
-const OrderHistory = () => {
+const OrderHistory = ({ view = 'orders' }) => {
   const { currentUser, isAdmin } = useAuth();
   const { confirm } = useConfirm();
   const [orders, setOrders] = useState([]);
@@ -134,6 +122,7 @@ const OrderHistory = () => {
   const [customerLocation, setCustomerLocation] = useState(null);
   const [locationError, setLocationError] = useState('');
   const [locatingCustomer, setLocatingCustomer] = useState(false);
+  const isHistoryView = view === 'history';
 
   useEffect(() => {
     if (!currentUser || isAdmin) {
@@ -170,6 +159,35 @@ const OrderHistory = () => {
         return '';
     }
   };
+
+  const isFinishedRecord = (order) =>
+    order.status === 'Completed' ||
+    order.status === 'Cancelled' ||
+    getReservationArrivalStatus(order) === 'Cancelled';
+
+  const visibleOrders = orders.filter((order) => {
+    if (isHistoryView) {
+      return isFinishedRecord(order);
+    }
+
+    return !isReservationOrder(order) && !isFinishedRecord(order);
+  });
+
+  const pageCopy = isHistoryView
+    ? {
+        title: 'History',
+        description: 'Completed and cancelled delivery orders and reservations are listed here.',
+        emptyTitle: 'No History Yet',
+        emptyText: 'Completed and cancelled orders or reservations will appear here.',
+        actionLabel: 'Browse Menu'
+      }
+    : {
+        title: 'Active Orders',
+        description: 'Track your current delivery orders here.',
+        emptyTitle: 'No Active Orders',
+        emptyText: 'Active delivery orders will appear here after you place an order.',
+        actionLabel: 'Order Delivery'
+      };
 
   const toggleTracking = (orderId) => {
     setTrackedOrderIds((current) => ({
@@ -235,7 +253,7 @@ const OrderHistory = () => {
     const currentStepIndex = getTrackingIndex(order.status);
     const isCancelled = order.status === 'Cancelled';
     const distanceKm = customerLocation
-      ? getDistanceInKm(cafeLocation, customerLocation)
+      ? getDistanceInKm(restaurantLocation, customerLocation)
       : null;
 
     return (
@@ -288,7 +306,7 @@ const OrderHistory = () => {
           <div>
             <span>Cafe location</span>
             <strong>
-              {cafeLocation.name} ({cafeLocation.latitude.toFixed(6)}, {cafeLocation.longitude.toFixed(6)})
+              {restaurantLocation.name} ({restaurantLocation.latitude.toFixed(6)}, {restaurantLocation.longitude.toFixed(6)})
             </strong>
           </div>
           <div>
@@ -331,8 +349,8 @@ const OrderHistory = () => {
   return (
     <div className="order-history-container">
       <div className="order-history-header">
-        <h1>Track Your Orders</h1>
-        <p>View live delivery updates from the cafe staff dashboard.</p>
+        <h1>{pageCopy.title}</h1>
+        <p>{pageCopy.description}</p>
       </div>
 
       <div className="order-history-content">
@@ -347,18 +365,18 @@ const OrderHistory = () => {
           </div>
         )}
         {ordersError && <p className="checkout-error">{ordersError}</p>}
-        {currentUser && !isAdmin && orders.length === 0 ? (
+        {currentUser && !isAdmin && visibleOrders.length === 0 ? (
           <div className="no-orders">
             <div className="no-orders-icon">📦</div>
-            <h2>No Orders Yet</h2>
-            <p>Start ordering from our menu to see your order history here.</p>
+            <h2>{pageCopy.emptyTitle}</h2>
+            <p>{pageCopy.emptyText}</p>
             <Link to="/menu" className="btn btn-primary">
-              Browse Menu
+              {pageCopy.actionLabel}
             </Link>
           </div>
         ) : currentUser && !isAdmin ? (
           <div className="orders-list">
-            {orders.map(order => (
+            {visibleOrders.map(order => (
               <div key={order.id} className="order-card">
                 <div className="order-card-header">
                   <div className="order-info">
@@ -376,7 +394,7 @@ const OrderHistory = () => {
 
                 <div className="order-card-body">
                   <div className="order-items">
-                    <h4>Items:</h4>
+                    <h4>{isReservationOrder(order) ? 'Reservation:' : 'Items:'}</h4>
                     <ul className="items-list">
                       {(order.items || []).map((item, idx) => (
                         <li key={idx}>{item}</li>
@@ -390,21 +408,23 @@ const OrderHistory = () => {
                   </div>
                 </div>
 
-                <div className="order-card-footer">
-                  <button type="button" className="btn btn-secondary btn-small">
-                    Reorder
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-secondary btn-small"
-                    aria-expanded={Boolean(trackedOrderIds[order.id])}
-                    aria-controls={`tracking-${order.id}`}
-                    onClick={() => toggleTracking(order.id)}
-                  >
-                    {trackedOrderIds[order.id] ? 'Hide Tracking' : 'Track Order'}
-                  </button>
-                </div>
-                {trackedOrderIds[order.id] && renderTrackingPanel(order)}
+                {!isReservationOrder(order) && !isHistoryView && (
+                  <div className="order-card-footer">
+                    <button type="button" className="btn btn-secondary btn-small">
+                      Reorder
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-small"
+                      aria-expanded={Boolean(trackedOrderIds[order.id])}
+                      aria-controls={`tracking-${order.id}`}
+                      onClick={() => toggleTracking(order.id)}
+                    >
+                      {trackedOrderIds[order.id] ? 'Hide Tracking' : 'Track Order'}
+                    </button>
+                  </div>
+                )}
+                {!isHistoryView && trackedOrderIds[order.id] && renderTrackingPanel(order)}
               </div>
             ))}
           </div>

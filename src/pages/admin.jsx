@@ -1,15 +1,20 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { Navigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/authcontext';
 import { useConfirm } from '../context/confirmcontext';
-import { baseMenuItems, menuCategories } from '../data/menudata';
+import ReservationRouteMap from '../components/reservationroutemap';
+import { menuCategories } from '../data/menudata';
 import {
   addMenuItem,
   deleteOrder,
-  subscribeMenuItems,
   subscribeOrders,
-  updateOrderStatus
+  updateOrderStatus,
+  updateReservationArrivalStatus
 } from '../services/database';
+import {
+  getReservationArrivalStatus,
+  isReservationOrder
+} from '../utils/reservationarrival';
 
 const emptyItemForm = {
   name: '',
@@ -22,11 +27,18 @@ const emptyItemForm = {
 
 const adminTabs = [
   {
-    id: 'orders',
-    label: 'Receive Orders',
+    id: 'delivery-orders',
+    label: 'Orders',
     mobileLabel: 'Orders',
-    title: 'Receive Orders',
-    description: 'Confirm incoming delivery and reservation requests.'
+    title: 'Orders',
+    description: 'Receive and manage customer delivery orders.'
+  },
+  {
+    id: 'reservations',
+    label: 'Reservations',
+    mobileLabel: 'Reserve',
+    title: 'Reservation Orders',
+    description: 'Manage table reservations, arrival updates, and shared arrival locations.'
   },
   {
     id: 'add-item',
@@ -34,15 +46,11 @@ const adminTabs = [
     mobileLabel: 'Add Item',
     title: 'Add Item / Food',
     description: 'New items are saved to the customer delivery menu.'
-  },
-  {
-    id: 'inventory',
-    label: 'Inventory',
-    mobileLabel: 'Inventory',
-    title: 'Inventory System',
-    description: 'Track current stock levels for staff and kitchen use.'
   }
 ];
+
+const getValidAdminTab = (tabId) =>
+  adminTabs.some((tab) => tab.id === tabId) ? tabId : 'delivery-orders';
 
 const orderWorkflowTabs = [
   {
@@ -74,58 +82,72 @@ const orderWorkflowTabs = [
 const Admin = () => {
   const { authLoading, currentUser, isAdmin } = useAuth();
   const { confirm } = useConfirm();
+  const [searchParams] = useSearchParams();
   const [orders, setOrders] = useState([]);
-  const [customMenuItems, setCustomMenuItems] = useState([]);
   const [itemForm, setItemForm] = useState(emptyItemForm);
   const [dbError, setDbError] = useState('');
   const [savingItem, setSavingItem] = useState(false);
   const [deletingOrderId, setDeletingOrderId] = useState('');
   const [updatingOrderId, setUpdatingOrderId] = useState('');
-  const [activeTab, setActiveTab] = useState('orders');
+  const [activeTab, setActiveTab] = useState(() => getValidAdminTab(searchParams.get('tab')));
   const [activeOrderTab, setActiveOrderTab] = useState('receiving');
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [selectedMapOrder, setSelectedMapOrder] = useState(null);
 
-  const inventoryItems = useMemo(
-    () => [...baseMenuItems, ...customMenuItems],
-    [customMenuItems]
-  );
+  useEffect(() => {
+    setActiveTab(getValidAdminTab(searchParams.get('tab')));
+  }, [searchParams]);
 
-  const waitingOrders = orders.filter((order) => order.status === 'Waiting').length;
-  const lowStockItems = inventoryItems.filter((item) => Number(item.stock || 0) <= 12).length;
+  const deliveryOrders = orders.filter((order) => !isReservationOrder(order));
+  const reservationOrders = orders.filter((order) => isReservationOrder(order));
 
-  const getOrderWorkflowCount = (tab) =>
-    orders.filter((order) => tab.statuses.includes(order.status)).length;
+  const matchesOrderWorkflowTab = (order, tab, orderType) => {
+    if (orderType === 'reservation') {
+      return isReservationOrder(order);
+    }
+
+    return !isReservationOrder(order) && tab.statuses.includes(order.status);
+  };
+
+  const getOrderWorkflowCount = (tab, orderType) =>
+    orders.filter((order) => matchesOrderWorkflowTab(order, tab, orderType)).length;
 
   const getStatusClass = (status) =>
     `status-${String(status).toLowerCase().replace(/\s+/g, '-')}`;
+
+  const getReservationAdminStatus = (order) => {
+    if (order.status === 'Arrived') {
+      return 'Arrived';
+    }
+
+    if (order.status === 'Pending') {
+      return 'Pending';
+    }
+
+    if (order.status === 'Cancelled') {
+      return 'Cancelled';
+    }
+
+    return 'Waiting';
+  };
+
+  const getAdminStatusLabel = (order) =>
+    isReservationOrder(order) ? getReservationAdminStatus(order) : order.status;
 
   useEffect(() => {
     if (authLoading || !isAdmin) {
       return undefined;
     }
 
-    const unsubscribeItems = subscribeMenuItems(
-      setCustomMenuItems,
-      () => setDbError('Unable to load menu items from Firebase.')
-    );
     const unsubscribeOrders = subscribeOrders(
       setOrders,
       () => setDbError('Unable to load orders from Firebase.')
     );
 
     return () => {
-      unsubscribeItems();
       unsubscribeOrders();
     };
   }, [authLoading, isAdmin]);
-
-  useEffect(() => {
-    document.body.classList.add('has-admin-mobile-nav');
-
-    return () => {
-      document.body.classList.remove('has-admin-mobile-nav');
-    };
-  }, []);
 
   if (authLoading) {
     return (
@@ -140,10 +162,13 @@ const Admin = () => {
   }
 
   const handleReceiveOrder = async (order) => {
+    const isReservation = isReservationOrder(order);
     const confirmed = await confirm({
-      title: 'Receive this order?',
-      description: `${order.orderNumber || 'This order'} will move to the food preparation workflow.`,
-      confirmText: 'Receive Order',
+      title: isReservation ? 'Accept this reservation?' : 'Receive this order?',
+      description: isReservation
+        ? `${order.orderNumber || 'This reservation'} will move to waiting.`
+        : `${order.orderNumber || 'This request'} will move to the food preparation workflow.`,
+      confirmText: isReservation ? 'Accept Reservation' : 'Receive Order',
       cancelText: 'Not Yet',
       tone: 'default'
     });
@@ -152,7 +177,7 @@ const Admin = () => {
       return;
     }
 
-    await handleUpdateOrderStatus(order.firebaseId, 'Received');
+    await handleUpdateOrderStatus(order.firebaseId, isReservation ? 'Waiting' : 'Received');
     setSelectedOrder(null);
   };
 
@@ -170,9 +195,9 @@ const Admin = () => {
 
   const handleDeleteOrder = async (order) => {
     const confirmed = await confirm({
-      title: 'Delete completed order?',
-      description: `${order.orderNumber || 'This order'} will be permanently removed from the order list.`,
-      confirmText: 'Delete Order',
+      title: isReservationOrder(order) ? 'Delete this reservation?' : 'Delete completed order?',
+      description: `${order.orderNumber || 'This request'} will be permanently removed from the list.`,
+      confirmText: isReservationOrder(order) ? 'Delete Reservation' : 'Delete Order',
       cancelText: 'Keep Order',
       tone: 'danger'
     });
@@ -189,6 +214,51 @@ const Admin = () => {
       setDbError('Unable to delete this order from Firebase.');
     } finally {
       setDeletingOrderId('');
+    }
+  };
+
+  const handleCancelReservation = async (order) => {
+    const confirmed = await confirm({
+      title: 'Cancel this reservation?',
+      description: `${order.orderNumber || 'This reservation'} will be marked cancelled and location sharing will be disabled.`,
+      confirmText: 'Cancel Reservation',
+      cancelText: 'Keep Reservation',
+      tone: 'danger'
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
+    await handleUpdateOrderStatus(order.firebaseId, 'Cancelled');
+    setSelectedOrder(null);
+  };
+
+  const handleMarkReservationArrived = async (order) => {
+    const confirmed = await confirm({
+      title: 'Mark reservation as arrived?',
+      description: `${order.orderNumber || 'This reservation'} will be marked as arrived.`,
+      confirmText: 'Mark Arrived',
+      cancelText: 'Not Yet',
+      tone: 'default'
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setUpdatingOrderId(order.firebaseId);
+      setDbError('');
+      await Promise.all([
+        updateOrderStatus(order.firebaseId, 'Arrived'),
+        updateReservationArrivalStatus(order.firebaseId, 'Arrived')
+      ]);
+      setSelectedOrder(null);
+    } catch (error) {
+      setDbError('Unable to mark this reservation as arrived.');
+    } finally {
+      setUpdatingOrderId('');
     }
   };
 
@@ -226,6 +296,73 @@ const Admin = () => {
 
   const renderOrderAction = (order) => {
     const isUpdating = updatingOrderId === order.firebaseId;
+
+    if (isReservationOrder(order)) {
+      const reservationAdminStatus = getReservationAdminStatus(order);
+      const isInactiveReservation =
+        order.status === 'Cancelled' ||
+        getReservationArrivalStatus(order) === 'Cancelled';
+
+      const cancelButton = !isInactiveReservation ? (
+        <button
+          type="button"
+          className="btn btn-secondary btn-small"
+          onClick={() => handleCancelReservation(order)}
+          disabled={isUpdating}
+        >
+          {isUpdating ? 'Cancelling...' : 'Cancel'}
+        </button>
+      ) : null;
+
+      const mapButton = (
+        <button
+          type="button"
+          className="btn btn-secondary btn-small"
+          onClick={() => setSelectedMapOrder(order)}
+        >
+          View Map
+        </button>
+      );
+
+      const acceptButton = order.status === 'Pending' && !isInactiveReservation ? (
+        <button
+          type="button"
+          className="btn btn-primary btn-small"
+          onClick={() => handleReceiveOrder(order)}
+          disabled={isUpdating}
+        >
+          {isUpdating ? 'Accepting...' : 'Accept'}
+        </button>
+      ) : null;
+
+      const arrivedButton = reservationAdminStatus !== 'Arrived' && order.status !== 'Pending' && !isInactiveReservation ? (
+        <button
+          type="button"
+          className="btn btn-primary btn-small"
+          onClick={() => handleMarkReservationArrived(order)}
+          disabled={isUpdating}
+        >
+          {isUpdating ? 'Updating...' : 'Arrived'}
+        </button>
+      ) : null;
+
+      if (reservationAdminStatus === 'Arrived' || isInactiveReservation) {
+        return (
+          <div className="staff-action-group">
+            {mapButton}
+          </div>
+        );
+      }
+
+      return (
+        <div className="staff-action-group">
+          {mapButton}
+          {acceptButton}
+          {arrivedButton}
+          {cancelButton}
+        </div>
+      );
+    }
 
     switch (order.status) {
       case 'Received':
@@ -268,28 +405,10 @@ const Admin = () => {
           </button>
         );
       case 'Completed':
-        return (
-          <button
-            type="button"
-            className="btn btn-danger btn-small"
-            onClick={() => handleDeleteOrder(order)}
-            disabled={deletingOrderId === order.firebaseId}
-          >
-            {deletingOrderId === order.firebaseId ? 'Deleting...' : 'Delete'}
-          </button>
-        );
+        return null;
       case 'Waiting':
       default:
-        return (
-          <button
-            type="button"
-            className="btn btn-primary btn-small"
-            onClick={() => setSelectedOrder(order)}
-            disabled={isUpdating}
-          >
-            {isUpdating ? 'Updating...' : 'View Details'}
-          </button>
-        );
+        return null;
     }
   };
 
@@ -312,8 +431,8 @@ const Admin = () => {
           onClick={(event) => event.stopPropagation()}
         >
           <div className="admin-order-modal-header">
-            <span className={`staff-status ${getStatusClass(selectedOrder.status)}`}>
-              {selectedOrder.status}
+            <span className={`staff-status ${getStatusClass(getAdminStatusLabel(selectedOrder))}`}>
+              {getAdminStatusLabel(selectedOrder)}
             </span>
             <h2 id="admin-order-modal-title">{selectedOrder.orderNumber}</h2>
             <p>{selectedOrder.customer} - {selectedOrder.service || 'Online Delivery'}</p>
@@ -336,39 +455,146 @@ const Admin = () => {
               <span>Payment</span>
               <strong>{getPaymentMethodLabel(selectedOrder.paymentMethod)}</strong>
             </div>
-            <div className="admin-order-detail-wide">
-              <span>Delivery address</span>
-              <strong>{getOrderAddress(selectedOrder)}</strong>
-            </div>
+            {isReservationOrder(selectedOrder) ? (
+              <>
+                <div>
+                  <span>Guests</span>
+                  <strong>{selectedOrder.reservation?.guests || 'Not provided'}</strong>
+                </div>
+                <div>
+                  <span>Date and time</span>
+                  <strong>
+                    {[selectedOrder.reservation?.date, selectedOrder.reservation?.time]
+                      .filter(Boolean)
+                      .join(' ') || 'Not provided'}
+                  </strong>
+                </div>
+                <div className="admin-order-detail-wide">
+                  <span>Reservation notes</span>
+                  <strong>{selectedOrder.reservation?.notes || 'No special request'}</strong>
+                </div>
+              </>
+            ) : (
+              <div className="admin-order-detail-wide">
+                <span>Delivery address</span>
+                <strong>{getOrderAddress(selectedOrder)}</strong>
+              </div>
+            )}
           </div>
 
-          <div className="admin-order-items-panel">
-            <h3>Order Items</h3>
-            <ul>
-              {(selectedOrder.items || []).map((item, index) => (
-                <li key={`${item}-${index}`}>{item}</li>
-              ))}
-            </ul>
-            <div className="admin-order-total">
-              <span>Total</span>
-              <strong>P{Number(selectedOrder.total || 0).toFixed(2)}</strong>
+          {!isReservationOrder(selectedOrder) && (
+            <div className="admin-order-items-panel">
+              <h3>Order Items</h3>
+              <ul>
+                {(selectedOrder.items || []).map((item, index) => (
+                  <li key={`${item}-${index}`}>{item}</li>
+                ))}
+              </ul>
+              <div className="admin-order-total">
+                <span>Total</span>
+                <strong>P{Number(selectedOrder.total || 0).toFixed(2)}</strong>
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="admin-order-modal-actions">
             <button type="button" className="btn btn-secondary" onClick={() => setSelectedOrder(null)}>
               Close
             </button>
-            {['Waiting', 'Pending'].includes(selectedOrder.status) && (
+            {((isReservationOrder(selectedOrder) &&
+              selectedOrder.status === 'Pending' &&
+              getReservationAdminStatus(selectedOrder) !== 'Arrived') ||
+              (!isReservationOrder(selectedOrder) && ['Waiting', 'Pending'].includes(selectedOrder.status))) && (
               <button
                 type="button"
                 className="btn btn-primary"
                 onClick={() => handleReceiveOrder(selectedOrder)}
                 disabled={updatingOrderId === selectedOrder.firebaseId}
               >
-                {updatingOrderId === selectedOrder.firebaseId ? 'Accepting...' : 'Accept Delivery'}
+                {updatingOrderId === selectedOrder.firebaseId
+                  ? 'Accepting...'
+                  : isReservationOrder(selectedOrder)
+                    ? 'Accept Reservation'
+                    : 'Accept Delivery'}
               </button>
             )}
+            {isReservationOrder(selectedOrder) &&
+              getReservationAdminStatus(selectedOrder) !== 'Arrived' &&
+              selectedOrder.status !== 'Pending' &&
+              selectedOrder.status !== 'Cancelled' && (
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => handleMarkReservationArrived(selectedOrder)}
+                  disabled={updatingOrderId === selectedOrder.firebaseId}
+                >
+                  {updatingOrderId === selectedOrder.firebaseId ? 'Updating...' : 'Arrived'}
+                </button>
+              )}
+            {isReservationOrder(selectedOrder) &&
+              getReservationAdminStatus(selectedOrder) !== 'Arrived' &&
+              !['Completed', 'Cancelled'].includes(selectedOrder.status) && (
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => handleCancelReservation(selectedOrder)}
+                disabled={updatingOrderId === selectedOrder.firebaseId}
+              >
+                {updatingOrderId === selectedOrder.firebaseId ? 'Cancelling...' : 'Cancel Reservation'}
+              </button>
+            )}
+            {isReservationOrder(selectedOrder) && (
+              <button
+                type="button"
+                className="btn btn-danger"
+                onClick={() => handleDeleteOrder(selectedOrder)}
+                disabled={deletingOrderId === selectedOrder.firebaseId}
+              >
+                {deletingOrderId === selectedOrder.firebaseId ? 'Deleting...' : 'Delete Reservation'}
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderReservationMapModal = () => {
+    if (!selectedMapOrder) {
+      return null;
+    }
+
+    return (
+      <div
+        className="admin-order-modal-overlay"
+        role="presentation"
+        onClick={() => setSelectedMapOrder(null)}
+      >
+        <div
+          className="admin-order-modal admin-map-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="admin-map-modal-title"
+          onClick={(event) => event.stopPropagation()}
+        >
+          <div className="admin-order-modal-header">
+            <span className={`staff-status ${getStatusClass(getAdminStatusLabel(selectedMapOrder))}`}>
+              {getAdminStatusLabel(selectedMapOrder)}
+            </span>
+            <h2 id="admin-map-modal-title">Reservation Route Map</h2>
+            <p>{selectedMapOrder.customer} - {selectedMapOrder.orderNumber}</p>
+          </div>
+
+          <ReservationRouteMap reservation={selectedMapOrder} />
+
+          <div className="admin-order-modal-actions">
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => setSelectedMapOrder(null)}
+            >
+              Close
+            </button>
           </div>
         </div>
       </div>
@@ -420,52 +646,77 @@ const Admin = () => {
     }
   };
 
-  const renderOrdersPanel = () => {
+  const renderOrdersPanel = (orderType) => {
+    const currentAdminTab = orderType === 'reservation' ? adminTabs[1] : adminTabs[0];
+    const workflowTabs = orderWorkflowTabs;
     const currentWorkflowTab =
-      orderWorkflowTabs.find((tab) => tab.id === activeOrderTab) || orderWorkflowTabs[0];
-    const filteredOrders = orders.filter((order) =>
-      currentWorkflowTab.statuses.includes(order.status)
-    );
+      workflowTabs.find((tab) => tab.id === activeOrderTab) || workflowTabs[0];
+    const allOrdersForType = orderType === 'reservation' ? reservationOrders : deliveryOrders;
+    const filteredOrders = orderType === 'reservation'
+      ? allOrdersForType
+      : orders.filter((order) => matchesOrderWorkflowTab(order, currentWorkflowTab, orderType));
 
     return (
       <section className="admin-panel admin-tab-panel">
         <div className="admin-panel-header">
-          <h2>{adminTabs[0].title}</h2>
-          <p>{adminTabs[0].description}</p>
+          <h2>{currentAdminTab.title}</h2>
+          <p>{currentAdminTab.description}</p>
         </div>
 
-        <div className="admin-order-tabs" role="tablist" aria-label="Order workflow">
-          {orderWorkflowTabs.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              role="tab"
-              aria-selected={activeOrderTab === tab.id}
-              className={`admin-order-tab ${activeOrderTab === tab.id ? 'active' : ''}`}
-              onClick={() => setActiveOrderTab(tab.id)}
-            >
-              <span>{tab.label}</span>
-              <strong>{getOrderWorkflowCount(tab)}</strong>
-            </button>
-          ))}
-        </div>
+        {orderType !== 'reservation' && (
+          <div className="admin-order-tabs" role="tablist" aria-label="Order workflow">
+            {workflowTabs.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={currentWorkflowTab.id === tab.id}
+                className={`admin-order-tab ${currentWorkflowTab.id === tab.id ? 'active' : ''}`}
+                onClick={() => setActiveOrderTab(tab.id)}
+              >
+                <span>{tab.label}</span>
+                <strong>{getOrderWorkflowCount(tab, orderType)}</strong>
+              </button>
+            ))}
+          </div>
+        )}
 
         <div className="staff-orders">
-          {orders.length === 0 ? (
-            <div className="admin-empty-state">No customer orders yet.</div>
-          ) : filteredOrders.length === 0 ? (
+          {allOrdersForType.length === 0 ? (
+            <div className="admin-empty-state">
+              {orderType === 'reservation'
+                ? 'No reservation orders yet.'
+                : 'No online delivery orders yet.'}
+            </div>
+          ) : orderType !== 'reservation' && filteredOrders.length === 0 ? (
             <div className="admin-empty-state">{currentWorkflowTab.emptyText}</div>
           ) : (
             filteredOrders.map((order) => (
-              <article key={order.id} className="staff-order-card">
+              <article
+                key={order.id}
+                className="staff-order-card staff-order-card-clickable"
+                role="button"
+                tabIndex="0"
+                onClick={() => setSelectedOrder(order)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    setSelectedOrder(order);
+                  }
+                }}
+              >
                 <div>
                   <h3>{order.orderNumber}</h3>
                   <p>{order.customer} - {order.service}</p>
                   <small>{(order.items || []).join(', ')}</small>
                 </div>
-                <div className="staff-order-actions">
-                  <span className={`staff-status ${getStatusClass(order.status)}`}>
-                    {order.status}
+                <div
+                  className="staff-order-actions"
+                  onClick={(event) => event.stopPropagation()}
+                  onKeyDown={(event) => event.stopPropagation()}
+                >
+                  <span className={`staff-status ${getStatusClass(getAdminStatusLabel(order))}`}>
+                    {getAdminStatusLabel(order)}
                   </span>
                   {renderOrderAction(order)}
                 </div>
@@ -480,65 +731,80 @@ const Admin = () => {
   const renderAddItemPanel = () => (
     <section className="admin-panel admin-tab-panel">
       <div className="admin-panel-header">
-        <h2>{adminTabs[1].title}</h2>
-        <p>{adminTabs[1].description}</p>
+        <h2>{adminTabs[2].title}</h2>
+        <p>{adminTabs[2].description}</p>
       </div>
 
       <form className="admin-add-form" onSubmit={handleAddItem}>
-        <input
-          type="text"
-          name="name"
-          placeholder="Item or food name"
-          value={itemForm.name}
-          onChange={handleItemInputChange}
-          className="form-input"
-          required
-        />
+        <label className="form-field">
+          <span>Item or food name</span>
+          <input
+            type="text"
+            name="name"
+            placeholder="Example: Iced Latte"
+            value={itemForm.name}
+            onChange={handleItemInputChange}
+            className="form-input"
+            required
+          />
+        </label>
         <div className="form-row-2">
-          <input
-            type="number"
-            name="price"
-            placeholder="Price"
-            min="1"
-            value={itemForm.price}
-            onChange={handleItemInputChange}
-            className="form-input"
-            required
-          />
-          <input
-            type="number"
-            name="stock"
-            placeholder="Stock"
-            min="0"
-            value={itemForm.stock}
-            onChange={handleItemInputChange}
-            className="form-input"
-            required
-          />
+          <label className="form-field">
+            <span>Price</span>
+            <input
+              type="number"
+              name="price"
+              placeholder="0"
+              min="1"
+              value={itemForm.price}
+              onChange={handleItemInputChange}
+              className="form-input"
+              required
+            />
+          </label>
+          <label className="form-field">
+            <span>Available stock</span>
+            <input
+              type="number"
+              name="stock"
+              placeholder="0"
+              min="0"
+              value={itemForm.stock}
+              onChange={handleItemInputChange}
+              className="form-input"
+              required
+            />
+          </label>
         </div>
-        <select
-          name="category"
-          value={itemForm.category}
-          onChange={handleItemInputChange}
-          className="form-input"
-        >
-          {menuCategories
-            .filter((category) => category.id !== 'all')
-            .map((category) => (
-              <option key={category.id} value={category.id}>
-                {category.name}
-              </option>
-            ))}
-        </select>
-        <textarea
-          name="description"
-          placeholder="Description"
-          value={itemForm.description}
-          onChange={handleItemInputChange}
-          className="form-input reservation-notes"
-          rows="4"
-          required
-        />
+        <label className="form-field">
+          <span>Menu category</span>
+          <select
+            name="category"
+            value={itemForm.category}
+            onChange={handleItemInputChange}
+            className="form-input"
+          >
+            {menuCategories
+              .filter((category) => category.id !== 'all')
+              .map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
+          </select>
+        </label>
+        <label className="form-field">
+          <span>Description</span>
+          <textarea
+            name="description"
+            placeholder="Short description customers will see on the menu"
+            value={itemForm.description}
+            onChange={handleItemInputChange}
+            className="form-input reservation-notes"
+            rows="4"
+            required
+          />
+        </label>
         <button type="submit" className="btn btn-primary btn-full" disabled={savingItem}>
           {savingItem ? 'Saving Item...' : 'Add Item to Menu'}
         </button>
@@ -546,114 +812,26 @@ const Admin = () => {
     </section>
   );
 
-  const renderInventoryPanel = () => (
-    <section className="admin-panel inventory-panel admin-tab-panel">
-      <div className="admin-panel-header">
-        <h2>{adminTabs[2].title}</h2>
-        <p>{adminTabs[2].description}</p>
-      </div>
-
-      <div className="inventory-table-wrap">
-        <table className="inventory-table">
-          <thead>
-            <tr>
-              <th>Item</th>
-              <th>Category</th>
-              <th>Price</th>
-              <th>Stock</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {inventoryItems.map((item) => {
-              const stock = Number(item.stock || 0);
-              const stockStatus = stock <= 0 ? 'Out' : stock <= 12 ? 'Low' : 'Available';
-
-              return (
-                <tr key={item.id}>
-                  <td>
-                    <strong>{item.name}</strong>
-                    {item.staffAdded && <span className="staff-added-label">Staff added</span>}
-                  </td>
-                  <td>{menuCategories.find((category) => category.id === item.category)?.name}</td>
-                  <td>P{Number(item.price).toFixed(2)}</td>
-                  <td>{stock}</td>
-                  <td>
-                    <span className={`inventory-status inventory-${stockStatus.toLowerCase()}`}>
-                      {stockStatus}
-                    </span>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    </section>
-  );
-
   return (
     <div className="admin-page">
       <section className="admin-hero">
         <span className="service-eyebrow">Admin / Staff Account</span>
-        <h1>Order Receiving and Inventory</h1>
-        <p>Receive customer orders, monitor stock, and add new food or drink items.</p>
-      </section>
-
-      <section className="admin-stats" aria-label="Admin summary">
-        <div className="admin-stat">
-          <span>{waitingOrders}</span>
-          <p>Waiting orders</p>
-        </div>
-        <div className="admin-stat">
-          <span>{inventoryItems.length}</span>
-          <p>Menu items</p>
-        </div>
-        <div className="admin-stat">
-          <span>{lowStockItems}</span>
-          <p>Low stock items</p>
-        </div>
+        <h1>Orders and Menu Management</h1>
+        <p>Manage online delivery orders, reservations, and customer menu items.</p>
       </section>
 
       {dbError && <div className="admin-error">{dbError}</div>}
 
       <section className="admin-tabs-shell">
-        <div className="admin-tabs" role="tablist" aria-label="Admin sections">
-          {adminTabs.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              role="tab"
-              aria-selected={activeTab === tab.id}
-              className={`admin-tab-button ${activeTab === tab.id ? 'active' : ''}`}
-              onClick={() => setActiveTab(tab.id)}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
         <div className="admin-tab-content">
-          {activeTab === 'orders' && renderOrdersPanel()}
+          {activeTab === 'delivery-orders' && renderOrdersPanel('delivery')}
+          {activeTab === 'reservations' && renderOrdersPanel('reservation')}
           {activeTab === 'add-item' && renderAddItemPanel()}
-          {activeTab === 'inventory' && renderInventoryPanel()}
         </div>
       </section>
 
-      <nav className="admin-mobile-nav" aria-label="Admin sections">
-        {adminTabs.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            className={`admin-mobile-nav-link ${activeTab === tab.id ? 'active' : ''}`}
-            onClick={() => setActiveTab(tab.id)}
-          >
-            {tab.mobileLabel}
-          </button>
-        ))}
-      </nav>
-
       {renderOrderDetailsModal()}
+      {renderReservationMapModal()}
     </div>
   );
 };

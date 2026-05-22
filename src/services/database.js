@@ -38,12 +38,43 @@ export const addOrder = (order) => {
     id: orderRef.key,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp()
-  });
+  }).then(() => orderRef.key);
 };
 
 export const updateOrderStatus = (orderId, status) =>
   update(ref(database, `orders/${orderId}`), {
     status,
+    ...(status === 'Completed' || status === 'Cancelled'
+      ? {
+          locationSharingEnabled: false,
+          locationConsent: false,
+          latestReservationLocation: null
+        }
+      : {}),
+    updatedAt: serverTimestamp()
+  });
+
+export const updateReservationArrivalStatus = (orderId, reservationArrivalStatus) =>
+  update(ref(database, `orders/${orderId}`), {
+    reservationArrivalStatus,
+    ...(reservationArrivalStatus === 'Cancelled'
+      ? {
+          locationSharingEnabled: false,
+          locationConsent: false,
+          latestReservationLocation: null
+        }
+      : {}),
+    updatedAt: serverTimestamp()
+  });
+
+export const updateReservationLocation = (orderId, location) =>
+  update(ref(database, `orders/${orderId}`), {
+    locationSharingEnabled: true,
+    locationConsent: Boolean(location.consentStatus ?? true),
+    ...(location.reservationArrivalStatus
+      ? { reservationArrivalStatus: location.reservationArrivalStatus }
+      : {}),
+    latestReservationLocation: location,
     updatedAt: serverTimestamp()
   });
 
