@@ -5868,6 +5868,108 @@ textarea:focus-visible {
   box-shadow: 0 18px 38px rgba(47, 36, 31, 0.22);
 }
 
+@keyframes appPageIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes appSurfaceIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes appDialogIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes appOverlayFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.menu-container,
+.cart-container,
+.checkout-container,
+.reservation-page,
+.order-history-container,
+.login-page,
+.admin-page {
+  animation: appPageIn 0.28s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.menu-header-content,
+.cart-summary,
+.cart-items-section,
+.checkout-content,
+.checkout-summary,
+.reservation-panel,
+.reservation-confirmation,
+.login-card,
+.admin-panel,
+.order-card,
+.product-card-menu,
+.cart-item-swipe-shell,
+.staff-order-card {
+  animation: appSurfaceIn 0.24s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.confirm-overlay,
+.quantity-modal-overlay,
+.admin-order-modal-overlay {
+  animation: appOverlayFadeIn 0.18s ease both;
+}
+
+.confirm-dialog,
+.quantity-modal,
+.admin-order-modal {
+  animation: appDialogIn 0.2s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.mobile-bottom-nav {
+  animation: appSurfaceIn 0.24s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.form-input:hover,
+.search-input:hover,
+.category-mobile-select:hover {
+  border-color: rgba(95, 111, 77, 0.34);
+}
+
+.product-card-menu,
+.order-card,
+.cart-item,
+.staff-order-card,
+.admin-panel {
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease,
+    background 0.2s ease;
+}
+
 @media (max-width: 768px) {
   .menu-header-content,
   .login-card,
@@ -5893,5 +5995,16 @@ textarea:focus-visible {
   .quantity-modal,
   .confirm-dialog {
     border-radius: 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
   }
 }
