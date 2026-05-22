@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/authcontext';
 import { CartContext } from '../context/cartcontext';
@@ -25,9 +25,21 @@ const Checkout = () => {
   const [deliveryError, setDeliveryError] = useState('');
   const [savingOrder, setSavingOrder] = useState(false);
 
+  useEffect(() => {
+    if (!currentUser || isAdmin) {
+      return;
+    }
+
+    setFormData((current) => ({
+      ...current,
+      name: current.name || currentUser.displayName || '',
+      email: current.email || currentUser.email || ''
+    }));
+  }, [currentUser, isAdmin]);
+
   const subtotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
-  const tax = subtotal * 0.08;
-  const total = subtotal + tax;
+  const deliveryFee = 30;
+  const total = subtotal + deliveryFee;
 
   const deliveryFields = ['name', 'email', 'phone', 'address', 'city'];
   const paymentFields = [];
@@ -296,8 +308,8 @@ const Checkout = () => {
                     <span>P{subtotal.toFixed(2)}</span>
                   </div>
                   <div className="summary-row">
-                    <span>Tax</span>
-                    <span>P{tax.toFixed(2)}</span>
+                    <span>Delivery fee</span>
+                    <span>P{deliveryFee.toFixed(2)}</span>
                   </div>
                   <div className="summary-total">
                     <span>Total</span>
@@ -357,8 +369,8 @@ const Checkout = () => {
               <span>P{subtotal.toFixed(2)}</span>
             </div>
             <div className="total-row">
-              <span>Tax:</span>
-              <span>P{tax.toFixed(2)}</span>
+              <span>Delivery fee:</span>
+              <span>P{deliveryFee.toFixed(2)}</span>
             </div>
             <div className="total-row grand-total">
               <span>Total:</span>

@@ -5429,8 +5429,18 @@ a {
   }
 
   .tracking-steps,
-  .tracking-details-grid,
+  .tracking-details-grid {
+    display: none;
+  }
+
   .tracking-location-card {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    margin-top: 12px;
+  }
+
+  .tracking-location-card div:first-child {
     display: none;
   }
 

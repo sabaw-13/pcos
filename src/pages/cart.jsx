@@ -10,8 +10,8 @@ const Cart = () => {
   const { cart, removeFromCart, updateQuantity, clearCart } = useContext(CartContext);
 
   const subtotal = cart.reduce((total, item) => total + item.price * item.quantity, 0);
-  const tax = subtotal * 0.08;
-  const total = subtotal + tax;
+  const deliveryFee = 30;
+  const total = subtotal + deliveryFee;
 
   const handleClearCart = async () => {
     const confirmed = await confirm({
@@ -94,8 +94,8 @@ const Cart = () => {
               <span className="amount">P{subtotal.toFixed(2)}</span>
             </div>
             <div className="summary-row">
-              <span>Tax (8%)</span>
-              <span className="amount">P{tax.toFixed(2)}</span>
+              <span>Delivery fee</span>
+              <span className="amount">P{deliveryFee.toFixed(2)}</span>
             </div>
             <div className="summary-divider"></div>
             <div className="summary-row total">

@@ -416,9 +416,6 @@ const OrderHistory = ({ view = 'orders' }) => {
 
                 {!isReservationOrder(order) && !isHistoryView && (
                   <div className="order-card-footer">
-                    <button type="button" className="btn btn-secondary btn-small">
-                      Reorder
-                    </button>
                     <button
                       type="button"
                       className="btn btn-primary btn-small order-track-btn"
