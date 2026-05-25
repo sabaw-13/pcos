@@ -162,7 +162,7 @@ const Navbar = () => {
   const handleLogout = async () => {
     const confirmed = await confirm({
       title: 'Log out of your account?',
-      description: 'You will be signed out and returned to the cafe landing page.',
+      description: 'You will be signed out and returned to the login page.',
       confirmText: 'Log Out',
       cancelText: 'Stay Signed In',
       tone: 'danger'
@@ -172,7 +172,7 @@ const Navbar = () => {
       return;
     }
 
-    navigate('/', { replace: true });
+    navigate('/login', { replace: true });
     await logout();
   };
 

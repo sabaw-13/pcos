@@ -16,7 +16,7 @@ const Checkout = () => {
     phone: '',
     address: '',
     city: '',
-    paymentMethod: 'cod'
+    paymentMethod: 'gcash'
   });
 
   const [orderPlaced, setOrderPlaced] = useState(false);
@@ -265,23 +265,13 @@ const Checkout = () => {
           {currentStep === 2 && (
             <CheckoutStep title="Payment Information">
               <div className="payment-methods">
-                <label className="payment-method">
-                  <input
-                    type="radio"
-                    name="paymentMethod"
-                    value="cod"
-                    checked={formData.paymentMethod === 'cod'}
-                    onChange={handleInputChange}
-                  />
-                  <span className="method-label">Cash on Delivery</span>
-                </label>
-                <label className="payment-method">
+                <label className="payment-method active">
                   <input
                     type="radio"
                     name="paymentMethod"
                     value="gcash"
-                    checked={formData.paymentMethod === 'gcash'}
-                    onChange={handleInputChange}
+                    checked
+                    readOnly
                   />
                   <span className="method-label">GCash</span>
                 </label>
