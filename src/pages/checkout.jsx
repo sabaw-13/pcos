@@ -15,7 +15,6 @@ const Checkout = () => {
     email: '',
     phone: '',
     address: '',
-    city: '',
     paymentMethod: 'gcash'
   });
 
@@ -41,24 +40,7 @@ const Checkout = () => {
   const deliveryFee = 30;
   const total = subtotal + deliveryFee;
 
-  const deliveryFields = ['name', 'email', 'phone', 'address', 'city'];
-  const paymentFields = [];
-
-  const filledDeliveryFields = deliveryFields.filter((field) => formData[field].trim() !== '').length;
-  const filledPaymentFields = paymentFields.filter((field) => formData[field].trim() !== '').length;
-
-  const deliveryProgress = filledDeliveryFields / deliveryFields.length;
-  const paymentProgress =
-    paymentFields.length > 0 ? filledPaymentFields / paymentFields.length : 1;
-
-  let progressPercent = 0;
-  if (currentStep === 1) {
-    progressPercent = deliveryProgress * 50;
-  } else if (currentStep === 2) {
-    progressPercent = 50 + paymentProgress * 50;
-  } else {
-    progressPercent = 100;
-  }
+  const deliveryFields = ['name', 'email', 'phone', 'address'];
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -94,6 +76,10 @@ const Checkout = () => {
     }
   };
 
+  const handleCancelCheckout = () => {
+    navigate('/cart');
+  };
+
   const handlePlaceOrder = async () => {
     if (!currentUser || isAdmin) {
       setOrderError('Please log in with a customer account before placing a delivery order.');
@@ -125,8 +111,7 @@ const Checkout = () => {
           phone: formData.phone
         },
         deliveryAddress: {
-          street: formData.address,
-          city: formData.city
+          street: formData.address
         },
         paymentMethod: formData.paymentMethod
       });
@@ -175,29 +160,10 @@ const Checkout = () => {
   return (
     <div className="checkout-container">
       <div className="checkout-header">
-        <p className="page-step-label">Step 3 of 3</p>
         <h1>Checkout</h1>
-        <p>Complete delivery details, payment, and review.</p>
       </div>
 
       <div className="checkout-layout">
-        <div className="progress-steps">
-          <div className="progress-line" aria-hidden="true">
-            <div className="progress-line-fill" style={{ width: `${progressPercent}%` }} />
-          </div>
-          {[1, 2, 3].map(step => (
-            <div
-              key={step}
-              className={`progress-step ${step === currentStep ? 'active' : ''} ${step < currentStep ? 'completed' : ''}`}
-            >
-              <div className="step-circle">{step < currentStep ? '✓' : step}</div>
-              <div className="step-label">
-                {step === 1 ? 'Delivery' : step === 2 ? 'Payment' : 'Review'}
-              </div>
-            </div>
-          ))}
-        </div>
-
         <div className="checkout-content">
           {currentStep === 1 && (
             <CheckoutStep title="Delivery Information">
@@ -241,17 +207,6 @@ const Checkout = () => {
                     name="address"
                     placeholder="Street Address"
                     value={formData.address}
-                    onChange={handleInputChange}
-                    className="form-input"
-                    required
-                  />
-                </div>
-                <div className="form-row">
-                  <input
-                    type="text"
-                    name="city"
-                    placeholder="City"
-                    value={formData.city}
                     onChange={handleInputChange}
                     className="form-input"
                     required
@@ -311,7 +266,6 @@ const Checkout = () => {
                   <h3>Delivery Details</h3>
                   <p><strong>{formData.name}</strong></p>
                   <p>{formData.address}</p>
-                  <p>{formData.city}</p>
                   <p className="contact">{formData.phone}</p>
                 </div>
               </div>
@@ -319,18 +273,23 @@ const Checkout = () => {
           )}
 
           <div className="checkout-buttons">
+            <button type="button" onClick={handleCancelCheckout} className="btn btn-secondary">
+              Cancel
+            </button>
+
             {currentStep > 1 && (
-              <button onClick={handlePreviousStep} className="btn btn-secondary">
+              <button type="button" onClick={handlePreviousStep} className="btn btn-secondary">
                 Previous
               </button>
             )}
 
             {currentStep < 3 ? (
-              <button onClick={handleNextStep} className="btn btn-primary">
+              <button type="button" onClick={handleNextStep} className="btn btn-primary">
                 Continue
               </button>
             ) : (
               <button
+                type="button"
                 onClick={handlePlaceOrder}
                 className="btn btn-primary btn-success"
                 disabled={savingOrder}

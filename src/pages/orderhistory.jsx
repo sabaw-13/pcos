@@ -199,7 +199,7 @@ const OrderHistory = ({ view = 'orders' }) => {
   const handleMarkOrderReceived = async (order) => {
     const confirmed = await confirm({
       title: 'Order received?',
-      description: `${order.orderNumber || 'This order'} will be marked received and the cafe can complete it.`,
+      description: `${order.orderNumber || 'This order'} will be marked completed and moved to your history.`,
       confirmText: 'Order Received',
       cancelText: 'Not Yet',
       tone: 'default'
@@ -212,7 +212,7 @@ const OrderHistory = ({ view = 'orders' }) => {
     try {
       setReceivingOrderId(order.firebaseId);
       setOrdersError('');
-      await updateOrderStatus(order.firebaseId, 'Customer Received');
+      await updateOrderStatus(order.firebaseId, 'Completed');
     } catch (error) {
       setOrdersError('Unable to mark this order received right now.');
     } finally {
@@ -335,19 +335,6 @@ const OrderHistory = ({ view = 'orders' }) => {
           </button>
         </div>
         {locationError && <p className="checkout-error">{locationError}</p>}
-        {order.status === 'Delivering' && (
-          <div className="tracking-received-action">
-            <p>Tap this only after your delivery arrives.</p>
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={() => handleMarkOrderReceived(order)}
-              disabled={receivingOrderId === order.firebaseId}
-            >
-              {receivingOrderId === order.firebaseId ? 'Updating...' : 'Order Received'}
-            </button>
-          </div>
-        )}
       </div>
     );
   };
@@ -415,7 +402,7 @@ const OrderHistory = ({ view = 'orders' }) => {
                 </div>
 
                 {!isReservationOrder(order) && !isHistoryView && (
-                  <div className="order-card-footer">
+                  <div className="order-card-footer order-actions-inline">
                     <button
                       type="button"
                       className="btn btn-primary btn-small order-track-btn"
@@ -425,6 +412,16 @@ const OrderHistory = ({ view = 'orders' }) => {
                     >
                       {trackedOrderIds[order.id] ? 'Hide Tracking' : 'Track Order'}
                     </button>
+                    {order.status === 'Delivering' && (
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-small order-received-btn"
+                        onClick={() => handleMarkOrderReceived(order)}
+                        disabled={receivingOrderId === order.firebaseId}
+                      >
+                        {receivingOrderId === order.firebaseId ? 'Updating...' : 'Order Received'}
+                      </button>
+                    )}
                   </div>
                 )}
                 {!isHistoryView && trackedOrderIds[order.id] && renderTrackingPanel(order)}

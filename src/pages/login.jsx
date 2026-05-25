@@ -4,6 +4,36 @@ import { useAuth } from '../context/authcontext';
 import { useConfirm } from '../context/confirmcontext';
 import { ADMIN_EMAIL, createCustomerAccount, loginAdmin, loginCustomer } from '../services/auth';
 
+const EyeIcon = ({ hidden = false }) => (
+  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <path
+      d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <circle
+      cx="12"
+      cy="12"
+      r="3"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    />
+    {hidden && (
+      <path
+        d="M4 4l16 16"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    )}
+  </svg>
+);
+
 const Login = () => {
   const navigate = useNavigate();
   const { currentUser, isAdmin, logout } = useAuth();
@@ -27,15 +57,7 @@ const Login = () => {
         title: 'Create your cafe account',
         description: 'Save your details once, then order delivery and reserve a table faster next time.',
         submit: 'Create Account',
-        busy: 'Creating Account...',
-        previewTitle: 'Ready for your first order',
-        previewStatus: 'Account setup',
-        previewMeta: 'Delivery and reservations stay in one place.',
-        highlights: [
-          { label: 'Fast checkout', value: 'Saved contact details' },
-          { label: 'Reservation tracking', value: 'Share arrival only with consent' },
-          { label: 'Order updates', value: 'See status changes in your account' }
-        ]
+        busy: 'Creating Account...'
       };
     }
 
@@ -44,15 +66,7 @@ const Login = () => {
       title: 'Log in to Persimmonay',
       description: 'Continue to your delivery orders, reservations, and latest cafe updates.',
       submit: 'Log In',
-      busy: 'Checking Account...',
-      previewTitle: 'Today at the cafe',
-      previewStatus: 'Open for orders',
-      previewMeta: 'GCash checkout, reservations, and order tracking are ready.',
-      highlights: [
-        { label: 'Delivery', value: 'Browse menu and checkout with GCash' },
-        { label: 'Reservations', value: 'Track your active booking' },
-        { label: 'Admin', value: 'Staff accounts open the dashboard automatically' }
-      ]
+      busy: 'Checking Account...'
     };
   }, [isSignup]);
 
@@ -126,38 +140,6 @@ const Login = () => {
   return (
     <div className={`login-page dynamic-login-page login-mode-${authMode}`}>
       <div className="login-shell">
-        <section className="login-visual-panel" aria-label="Persimmonay Cafe account overview">
-          <div className="login-brand-lockup">
-            <span className="login-logo-mark">PC</span>
-            <div>
-              <span className="service-eyebrow">Persimmonay Cafe</span>
-              <h1>{authContent.previewTitle}</h1>
-            </div>
-          </div>
-
-          <div className="login-preview-card">
-            <div className="login-preview-header">
-              <span>{authContent.previewStatus}</span>
-              <strong>{isSignup ? 'New' : 'Live'}</strong>
-            </div>
-            <p>{authContent.previewMeta}</p>
-            <div className="login-highlight-list">
-              {authContent.highlights.map((item) => (
-                <div className="login-highlight-item" key={item.label}>
-                  <span>{item.label}</span>
-                  <strong>{item.value}</strong>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="login-service-strip" aria-label="Available account tools">
-            <span>Delivery</span>
-            <span>Reservation</span>
-            <span>History</span>
-          </div>
-        </section>
-
         <section className="login-card auth-login-card" aria-label="Account form">
           <span className="service-eyebrow">{authContent.eyebrow}</span>
           <h1>{authContent.title}</h1>
@@ -246,8 +228,10 @@ const Login = () => {
                   type="button"
                   className="login-password-toggle"
                   onClick={() => setShowPassword((current) => !current)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  title={showPassword ? 'Hide password' : 'Show password'}
                 >
-                  {showPassword ? 'Hide' : 'Show'}
+                  <EyeIcon hidden={showPassword} />
                 </button>
               </div>
             </label>

@@ -2151,7 +2151,7 @@ a {
 }
 
 .order-track-btn {
-  background: linear-gradient(135deg, var(--accent-color), var(--primary-color));
+  background: linear-gradient(135deg, var(--primary-color), #6f3b25);
   color: #fff;
   border: none;
 }
@@ -3158,6 +3158,56 @@ a {
   font-size: 1.4rem;
   font-weight: 900;
   color: var(--primary-color);
+}
+
+.product-card-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
+}
+
+.product-quantity-selector {
+  display: inline-grid;
+  grid-template-columns: 30px 38px 30px;
+  align-items: center;
+  min-height: 36px;
+  overflow: hidden;
+  border: 1px solid rgba(79, 36, 22, 0.16);
+  border-radius: 8px;
+  background: #fffdf8;
+}
+
+.product-quantity-selector button,
+.product-quantity-selector input {
+  width: 100%;
+  height: 36px;
+  border: none;
+  background: transparent;
+  color: var(--primary-color);
+  font: inherit;
+  font-weight: 900;
+  text-align: center;
+}
+
+.product-quantity-selector button {
+  cursor: pointer;
+}
+
+.product-quantity-selector button:hover {
+  background: rgba(95, 111, 77, 0.1);
+}
+
+.product-quantity-selector input {
+  border-inline: 1px solid rgba(79, 36, 22, 0.12);
+  appearance: textfield;
+}
+
+.product-quantity-selector input::-webkit-outer-spin-button,
+.product-quantity-selector input::-webkit-inner-spin-button {
+  margin: 0;
+  appearance: none;
 }
 
 .btn-add-to-cart {
@@ -5052,6 +5102,22 @@ a {
     line-height: 1;
   }
 
+  .product-card-actions {
+    gap: 6px;
+  }
+
+  .product-quantity-selector {
+    grid-template-columns: 26px 30px 26px;
+    min-height: 34px;
+    border-radius: 8px;
+  }
+
+  .product-quantity-selector button,
+  .product-quantity-selector input {
+    height: 34px;
+    font-size: 0.78rem;
+  }
+
   .btn-add-to-cart {
     width: auto;
     flex: 0 0 auto;
@@ -5551,6 +5617,27 @@ a {
   }
 }
 
+@media (max-width: 430px) {
+  .product-card-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .product-card-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .product-quantity-selector {
+    flex: 1 1 auto;
+    grid-template-columns: 28px minmax(28px, 1fr) 28px;
+  }
+
+  .product-card-actions .btn-add-to-cart {
+    flex: 0 0 auto;
+  }
+}
+
 /* ===== SYSTEM UI POLISH ===== */
 html {
   scroll-behavior: smooth;
@@ -5982,176 +6069,16 @@ textarea:focus-visible {
 }
 
 .login-shell {
-  width: min(100%, 1120px);
+  width: min(100%, 460px);
   margin: auto;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(360px, 430px);
-  gap: clamp(18px, 3vw, 28px);
-  align-items: stretch;
+  display: block;
 }
 
-.login-visual-panel,
 .auth-login-card {
   position: relative;
   overflow: hidden;
   border: 1px solid var(--border-soft);
   box-shadow: var(--shadow-lg);
-}
-
-.login-visual-panel {
-  min-height: 560px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  gap: 24px;
-  padding: clamp(24px, 4vw, 38px);
-  border-radius: var(--border-radius-lg);
-  color: #fffdf8;
-  background:
-    linear-gradient(135deg, rgba(47, 36, 31, 0.86), rgba(79, 36, 22, 0.64)),
-    linear-gradient(135deg, var(--accent-color), var(--primary-color));
-}
-
-.login-visual-panel::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(90deg, rgba(255, 253, 248, 0.1) 1px, transparent 1px),
-    linear-gradient(180deg, rgba(255, 253, 248, 0.08) 1px, transparent 1px);
-  background-size: 42px 42px;
-  mask-image: linear-gradient(135deg, rgba(0, 0, 0, 0.8), transparent 72%);
-  pointer-events: none;
-}
-
-.login-brand-lockup,
-.login-preview-card,
-.login-service-strip {
-  position: relative;
-  z-index: 1;
-}
-
-.login-brand-lockup {
-  display: flex;
-  align-items: flex-start;
-  gap: 14px;
-}
-
-.login-logo-mark {
-  flex: 0 0 auto;
-  width: 46px;
-  height: 46px;
-  display: grid;
-  place-items: center;
-  border-radius: 14px;
-  background: #fffdf8;
-  color: var(--accent-color);
-  font-weight: 950;
-  letter-spacing: 0;
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18);
-}
-
-.login-brand-lockup .service-eyebrow {
-  margin-bottom: 8px;
-  color: rgba(255, 253, 248, 0.78);
-}
-
-.login-brand-lockup h1 {
-  max-width: 520px;
-  margin: 0;
-  font-size: clamp(2rem, 4.6vw, 4.25rem);
-  line-height: 1.04;
-  color: #fffdf8;
-}
-
-.login-preview-card {
-  width: min(100%, 520px);
-  padding: 20px;
-  border: 1px solid rgba(255, 253, 248, 0.24);
-  border-radius: 16px;
-  background: rgba(255, 253, 248, 0.14);
-  backdrop-filter: blur(12px);
-}
-
-.login-preview-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.login-preview-header span {
-  color: rgba(255, 253, 248, 0.82);
-  font-size: 0.8rem;
-  font-weight: 900;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.login-preview-header strong {
-  display: inline-flex;
-  align-items: center;
-  min-height: 28px;
-  padding: 0 10px;
-  border-radius: 999px;
-  background: rgba(255, 253, 248, 0.18);
-  color: #fffdf8;
-  font-size: 0.78rem;
-}
-
-.login-preview-card p {
-  margin: 12px 0 0;
-  max-width: 440px;
-  color: rgba(255, 253, 248, 0.88);
-  line-height: 1.6;
-}
-
-.login-highlight-list {
-  display: grid;
-  gap: 10px;
-  margin-top: 18px;
-}
-
-.login-highlight-item {
-  display: grid;
-  grid-template-columns: 140px minmax(0, 1fr);
-  gap: 14px;
-  align-items: center;
-  padding: 12px;
-  border-radius: 12px;
-  background: rgba(255, 253, 248, 0.12);
-}
-
-.login-highlight-item span {
-  color: rgba(255, 253, 248, 0.72);
-  font-size: 0.78rem;
-  font-weight: 900;
-  text-transform: uppercase;
-}
-
-.login-highlight-item strong {
-  color: #fffdf8;
-  font-size: 0.95rem;
-  line-height: 1.35;
-}
-
-.login-service-strip {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.login-service-strip span {
-  display: inline-flex;
-  align-items: center;
-  min-height: 36px;
-  padding: 0 12px;
-  border: 1px solid rgba(255, 253, 248, 0.28);
-  border-radius: 999px;
-  background: rgba(255, 253, 248, 0.12);
-  color: rgba(255, 253, 248, 0.9);
-  font-size: 0.84rem;
-  font-weight: 900;
 }
 
 .auth-login-card {
@@ -6189,7 +6116,7 @@ textarea:focus-visible {
 
 .login-password-wrap .form-input {
   width: 100%;
-  padding-right: 78px;
+  padding-right: 54px;
 }
 
 .login-password-toggle {
@@ -6197,21 +6124,52 @@ textarea:focus-visible {
   right: 8px;
   top: 50%;
   transform: translateY(-50%);
-  min-width: 58px;
-  min-height: 34px;
+  width: 36px;
+  height: 36px;
+  display: inline-grid;
+  place-items: center;
   border: 1px solid rgba(79, 36, 22, 0.12);
   border-radius: 10px;
   background: var(--surface-muted);
   color: var(--primary-color);
   font: inherit;
-  font-size: 0.78rem;
-  font-weight: 900;
   cursor: pointer;
 }
 
 .login-password-toggle:hover {
   background: #fff;
   border-color: rgba(95, 111, 77, 0.35);
+}
+
+.login-password-toggle svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+
+.order-actions-inline {
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+}
+
+.order-actions-inline .btn {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.order-received-btn {
+  color: var(--primary-color);
+  border: 1px solid rgba(79, 36, 22, 0.42);
+  background: #fffdf8;
+  box-shadow: none;
+}
+
+.order-received-btn:hover {
+  border-color: var(--primary-color);
+  background: rgba(79, 36, 22, 0.06);
+  box-shadow: 0 8px 18px rgba(79, 36, 22, 0.1);
 }
 
 .login-submit {
@@ -6237,30 +6195,8 @@ textarea:focus-visible {
   justify-content: flex-end;
 }
 
-.login-mode-signup .login-visual-panel {
-  background:
-    linear-gradient(135deg, rgba(47, 36, 31, 0.82), rgba(95, 111, 77, 0.72)),
-    linear-gradient(135deg, var(--primary-color), var(--accent-color));
-}
-
 @media (max-width: 900px) {
   .login-shell {
-    grid-template-columns: 1fr;
-  }
-
-  .auth-login-card {
-    order: -1;
-  }
-
-  .login-visual-panel {
-    min-height: auto;
-  }
-
-  .login-brand-lockup h1 {
-    font-size: clamp(1.85rem, 8vw, 3rem);
-  }
-
-  .login-preview-card {
     width: 100%;
   }
 }
@@ -6270,43 +6206,8 @@ textarea:focus-visible {
     padding: 14px;
   }
 
-  .login-visual-panel,
   .auth-login-card {
     border-radius: 14px;
-  }
-
-  .login-visual-panel {
-    padding: 18px;
-    gap: 16px;
-  }
-
-  .login-logo-mark {
-    width: 40px;
-    height: 40px;
-    border-radius: 12px;
-    font-size: 0.9rem;
-  }
-
-  .login-brand-lockup {
-    gap: 10px;
-  }
-
-  .login-preview-card {
-    padding: 14px;
-  }
-
-  .login-highlight-item {
-    grid-template-columns: 1fr;
-    gap: 3px;
-  }
-
-  .login-service-strip {
-    gap: 8px;
-  }
-
-  .login-service-strip span {
-    min-height: 32px;
-    font-size: 0.78rem;
   }
 
   .auth-login-card {
@@ -6351,6 +6252,17 @@ textarea:focus-visible {
   .quantity-modal,
   .confirm-dialog {
     border-radius: 14px;
+  }
+
+  .order-actions-inline {
+    flex-direction: row;
+  }
+
+  .order-actions-inline .btn {
+    width: auto;
+    padding-inline: 10px;
+    font-size: 0.78rem;
+    white-space: nowrap;
   }
 }
 

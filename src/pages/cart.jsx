@@ -60,7 +60,6 @@ const Cart = () => {
     <div className="cart-container">
       <div className="cart-header">
         <div>
-          <p className="page-step-label">Step 2 of 3</p>
           <h1 className="cart-title">
             <CartIcon className="cart-title-icon" />
             Review Cart

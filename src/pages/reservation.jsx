@@ -354,7 +354,6 @@ const Reservation = () => {
     <div className="reservation-page">
       <section className="reservation-panel">
         <div className="reservation-copy">
-          <span className="service-eyebrow">Step 1 of 1</span>
           <h1>Online Reservation</h1>
           <p>
             Choose your table schedule, then optionally share your arrival location after submitting.
