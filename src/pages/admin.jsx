@@ -27,6 +27,13 @@ const emptyItemForm = {
 
 const adminTabs = [
   {
+    id: 'dashboard',
+    label: 'Dashboard',
+    mobileLabel: 'Dash',
+    title: 'Admin Dashboard',
+    description: 'Track order volume, current work, and sales performance.'
+  },
+  {
     id: 'delivery-orders',
     label: 'Orders',
     mobileLabel: 'Orders',
@@ -50,7 +57,10 @@ const adminTabs = [
 ];
 
 const getValidAdminTab = (tabId) =>
-  adminTabs.some((tab) => tab.id === tabId) ? tabId : 'delivery-orders';
+  adminTabs.some((tab) => tab.id === tabId) ? tabId : 'dashboard';
+
+const getAdminTabById = (tabId) =>
+  adminTabs.find((tab) => tab.id === tabId) || adminTabs[0];
 
 const orderWorkflowTabs = [
   {
@@ -78,6 +88,122 @@ const orderWorkflowTabs = [
     emptyText: 'No completed orders yet.'
   }
 ];
+
+const salesStatuses = ['Completed', 'Customer Received'];
+
+const formatCurrency = (value) =>
+  `P${Number(value || 0).toLocaleString('en-PH', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })}`;
+
+const getOrderDate = (order) => {
+  const rawDate = order.createdAt || order.updatedAt;
+
+  if (!rawDate) {
+    return null;
+  }
+
+  if (typeof rawDate === 'number') {
+    const normalizedTimestamp = rawDate < 1000000000000 ? rawDate * 1000 : rawDate;
+    const date = new Date(normalizedTimestamp);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  const date = new Date(rawDate);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const isSalesOrder = (order) =>
+  !isReservationOrder(order) &&
+  salesStatuses.includes(order.status) &&
+  Number(order.total || 0) > 0;
+
+const isDateInRange = (date, startDate, endDate) =>
+  Boolean(date) && date >= startDate && date < endDate;
+
+const getRangeSales = (orders, startDate, endDate) =>
+  orders.reduce((total, order) => {
+    const orderDate = getOrderDate(order);
+
+    return isDateInRange(orderDate, startDate, endDate)
+      ? total + Number(order.total || 0)
+      : total;
+  }, 0);
+
+const getDashboardDateRanges = () => {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  const weekStart = new Date(today);
+  weekStart.setDate(weekStart.getDate() - 6);
+
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
+  const yearStart = new Date(now.getFullYear(), 0, 1);
+  const nextYearStart = new Date(now.getFullYear() + 1, 0, 1);
+
+  return {
+    weekStart,
+    tomorrow,
+    monthStart,
+    nextMonthStart,
+    yearStart,
+    nextYearStart
+  };
+};
+
+const getDailySalesSeries = (orders) => {
+  const now = new Date();
+
+  return Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    date.setDate(date.getDate() - (6 - index));
+
+    const nextDate = new Date(date);
+    nextDate.setDate(nextDate.getDate() + 1);
+
+    return {
+      label: date.toLocaleDateString('en-PH', { weekday: 'short' }),
+      sales: getRangeSales(orders, date, nextDate)
+    };
+  });
+};
+
+const parseOrderItem = (item) => {
+  const match = String(item || '').match(/^(.*?)\s+x\s*(\d+)$/i);
+
+  if (!match) {
+    return {
+      name: String(item || 'Menu item'),
+      quantity: 1
+    };
+  }
+
+  return {
+    name: match[1].trim(),
+    quantity: Number(match[2] || 1)
+  };
+};
+
+const getTopSellingItems = (orders) => {
+  const itemTotals = orders.reduce((totals, order) => {
+    (order.items || []).forEach((item) => {
+      const parsedItem = parseOrderItem(item);
+      totals[parsedItem.name] = (totals[parsedItem.name] || 0) + parsedItem.quantity;
+    });
+
+    return totals;
+  }, {});
+
+  return Object.entries(itemTotals)
+    .map(([name, quantity]) => ({ name, quantity }))
+    .sort((a, b) => b.quantity - a.quantity)
+    .slice(0, 5);
+};
 
 const Admin = () => {
   const { authLoading, currentUser, isAdmin } = useAuth();
@@ -647,7 +773,6 @@ const Admin = () => {
   };
 
   const renderOrdersPanel = (orderType) => {
-    const currentAdminTab = orderType === 'reservation' ? adminTabs[1] : adminTabs[0];
     const workflowTabs = orderWorkflowTabs;
     const currentWorkflowTab =
       workflowTabs.find((tab) => tab.id === activeOrderTab) || workflowTabs[0];
@@ -658,11 +783,6 @@ const Admin = () => {
 
     return (
       <section className="admin-panel admin-tab-panel">
-        <div className="admin-panel-header">
-          <h2>{currentAdminTab.title}</h2>
-          <p>{currentAdminTab.description}</p>
-        </div>
-
         {orderType !== 'reservation' && (
           <div className="admin-order-tabs" role="tablist" aria-label="Order workflow">
             {workflowTabs.map((tab) => (
@@ -728,13 +848,163 @@ const Admin = () => {
     );
   };
 
+  const renderDashboardPanel = () => {
+    const salesOrders = orders.filter(isSalesOrder);
+    const ranges = getDashboardDateRanges();
+    const weeklySales = getRangeSales(salesOrders, ranges.weekStart, ranges.tomorrow);
+    const monthlySales = getRangeSales(salesOrders, ranges.monthStart, ranges.nextMonthStart);
+    const yearlySales = getRangeSales(salesOrders, ranges.yearStart, ranges.nextYearStart);
+    const dailySalesSeries = getDailySalesSeries(salesOrders);
+    const topSellingItems = getTopSellingItems(salesOrders);
+    const maxDailySales = Math.max(...dailySalesSeries.map((item) => item.sales), 1);
+    const activeDeliveryCount = deliveryOrders.filter(
+      (order) => !['Completed', 'Cancelled'].includes(order.status)
+    ).length;
+    const pendingReservationCount = reservationOrders.filter((order) => order.status === 'Pending').length;
+    const completedOrderCount = deliveryOrders.filter((order) => order.status === 'Completed').length;
+    const recentSalesOrders = salesOrders.slice(0, 5);
+    const dashboardStats = [
+      {
+        label: 'Weekly Sales',
+        value: formatCurrency(weeklySales),
+        detail: 'Last 7 days'
+      },
+      {
+        label: 'Monthly Sales',
+        value: formatCurrency(monthlySales),
+        detail: new Date().toLocaleDateString('en-PH', { month: 'long', year: 'numeric' })
+      },
+      {
+        label: 'Yearly Sales',
+        value: formatCurrency(yearlySales),
+        detail: `${new Date().getFullYear()} sales`
+      },
+      {
+        label: 'Active Orders',
+        value: activeDeliveryCount,
+        detail: 'Delivery queue'
+      },
+      {
+        label: 'Pending Reservations',
+        value: pendingReservationCount,
+        detail: 'Needs admin review'
+      },
+      {
+        label: 'Completed Orders',
+        value: completedOrderCount,
+        detail: 'Delivery history'
+      }
+    ];
+
+    return (
+      <section className="admin-panel admin-tab-panel admin-dashboard-panel">
+        <div className="admin-dashboard-header">
+          <span className="admin-dashboard-date">
+            {new Date().toLocaleDateString('en-PH', {
+              weekday: 'long',
+              month: 'long',
+              day: 'numeric',
+              year: 'numeric'
+            })}
+          </span>
+        </div>
+
+        <div className="admin-dashboard-stats">
+          {dashboardStats.map((stat) => (
+            <article key={stat.label} className="admin-dashboard-stat">
+              <span>{stat.label}</span>
+              <strong>{stat.value}</strong>
+              <p>{stat.detail}</p>
+            </article>
+          ))}
+        </div>
+
+        <div className="admin-dashboard-grid">
+          <section className="admin-dashboard-card admin-sales-card">
+            <div className="admin-dashboard-card-header">
+              <div>
+                <h3>Weekly Sales Trend</h3>
+                <p>Completed and customer-received delivery orders</p>
+              </div>
+              <strong>{formatCurrency(weeklySales)}</strong>
+            </div>
+            <div className="admin-sales-chart" aria-label="Weekly sales chart">
+              {dailySalesSeries.map((item) => (
+                <div key={item.label} className="admin-sales-bar-item">
+                  <div className="admin-sales-bar-track">
+                    <span
+                      className="admin-sales-bar"
+                      style={{ height: `${Math.max((item.sales / maxDailySales) * 100, item.sales > 0 ? 12 : 0)}%` }}
+                    />
+                  </div>
+                  <span>{item.label}</span>
+                  <small>{formatCurrency(item.sales)}</small>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="admin-dashboard-card">
+            <div className="admin-dashboard-card-header">
+              <div>
+                <h3>Top Items</h3>
+                <p>By quantity sold</p>
+              </div>
+            </div>
+            <div className="admin-ranked-list">
+              {topSellingItems.length === 0 ? (
+                <div className="admin-empty-state">No completed sales data yet.</div>
+              ) : (
+                topSellingItems.map((item, index) => (
+                  <div key={item.name} className="admin-ranked-item">
+                    <span>{index + 1}</span>
+                    <strong>{item.name}</strong>
+                    <em>{item.quantity} sold</em>
+                  </div>
+                ))
+              )}
+            </div>
+          </section>
+        </div>
+
+        <section className="admin-dashboard-card">
+          <div className="admin-dashboard-card-header">
+            <div>
+              <h3>Recent Sales</h3>
+              <p>Latest completed delivery orders</p>
+            </div>
+          </div>
+          <div className="admin-sales-table">
+            {recentSalesOrders.length === 0 ? (
+              <div className="admin-empty-state">No recent sales yet.</div>
+            ) : (
+              recentSalesOrders.map((order) => {
+                const orderDate = getOrderDate(order);
+
+                return (
+                  <article key={order.id} className="admin-sales-row">
+                    <div>
+                      <strong>{order.orderNumber}</strong>
+                      <span>{order.customer || 'Customer'} - {order.service || 'Online Delivery'}</span>
+                    </div>
+                    <span>
+                      {orderDate
+                        ? orderDate.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })
+                        : 'No date'}
+                    </span>
+                    <strong>{formatCurrency(order.total)}</strong>
+                  </article>
+                );
+              })
+            )}
+          </div>
+        </section>
+      </section>
+    );
+  };
+
   const renderAddItemPanel = () => (
     <section className="admin-panel admin-tab-panel">
-      <div className="admin-panel-header">
-        <h2>{adminTabs[2].title}</h2>
-        <p>{adminTabs[2].description}</p>
-      </div>
-
       <form className="admin-add-form" onSubmit={handleAddItem}>
         <label className="form-field">
           <span>Item or food name</span>
@@ -812,27 +1082,31 @@ const Admin = () => {
     </section>
   );
 
+  const activeAdminTab = getAdminTabById(activeTab);
+
   return (
-    <div className="admin-page">
-      <section className="admin-hero">
-        <span className="service-eyebrow">Admin / Staff Account</span>
-        <h1>Orders and Menu Management</h1>
-        <p>Manage online delivery orders, reservations, and customer menu items.</p>
-      </section>
+    <>
+      <div className="admin-page">
+        <section className="admin-hero">
+          <h1>{activeAdminTab.title}</h1>
+          <p>{activeAdminTab.description}</p>
+        </section>
 
-      {dbError && <div className="admin-error">{dbError}</div>}
+        {dbError && <div className="admin-error">{dbError}</div>}
 
-      <section className="admin-tabs-shell">
-        <div className="admin-tab-content">
-          {activeTab === 'delivery-orders' && renderOrdersPanel('delivery')}
-          {activeTab === 'reservations' && renderOrdersPanel('reservation')}
-          {activeTab === 'add-item' && renderAddItemPanel()}
-        </div>
-      </section>
+        <section className="admin-tabs-shell">
+          <div className="admin-tab-content">
+            {activeTab === 'dashboard' && renderDashboardPanel()}
+            {activeTab === 'delivery-orders' && renderOrdersPanel('delivery')}
+            {activeTab === 'reservations' && renderOrdersPanel('reservation')}
+            {activeTab === 'add-item' && renderAddItemPanel()}
+          </div>
+        </section>
+      </div>
 
       {renderOrderDetailsModal()}
       {renderReservationMapModal()}
-    </div>
+    </>
   );
 };
 

@@ -47,6 +47,7 @@ const Navbar = () => {
       ]
       : isAdmin
         ? [
+            { path: '/admin?tab=dashboard', label: 'Dashboard', mobileLabel: 'Dash' },
             { path: '/admin?tab=delivery-orders', label: 'Orders', mobileLabel: 'Orders' },
             { path: '/admin?tab=reservations', label: 'Reservations', mobileLabel: 'Reserve' },
             { path: '/admin?tab=add-item', label: 'Add Item', mobileLabel: 'Add Item' }
@@ -66,7 +67,7 @@ const Navbar = () => {
     }
 
     const itemTab = new URLSearchParams(queryString).get('tab');
-    const currentTab = new URLSearchParams(location.search).get('tab') || 'delivery-orders';
+    const currentTab = new URLSearchParams(location.search).get('tab') || 'dashboard';
 
     return itemTab === currentTab;
   };
