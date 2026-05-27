@@ -159,7 +159,7 @@ const Checkout = () => {
 
   return (
     <div className="checkout-container">
-      <div className="checkout-header">
+      <div className="checkout-header customer-header-block">
         <h1>Checkout</h1>
       </div>
 

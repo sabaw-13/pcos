@@ -355,9 +355,6 @@ const Reservation = () => {
       <section className="reservation-panel">
         <div className="reservation-copy">
           <h1>Online Reservation</h1>
-          <p>
-            Choose your table schedule, then optionally share your arrival location after submitting.
-          </p>
         </div>
 
         <form className="reservation-form" onSubmit={handleSubmit}>

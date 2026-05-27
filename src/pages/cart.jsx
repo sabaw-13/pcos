@@ -58,7 +58,7 @@ const Cart = () => {
 
   return (
     <div className="cart-container">
-      <div className="cart-header">
+      <div className="cart-header customer-header-block">
         <div>
           <h1 className="cart-title">
             <CartIcon className="cart-title-icon" />

@@ -43,11 +43,8 @@ const Menu = () => {
   return (
     <div className="menu-container">
       <div className="menu-header">
-        <div className="menu-header-content">
+        <div className="menu-header-content customer-header-block">
           <h1 className="menu-title">Order Food and Drinks</h1>
-          <p className="menu-description">
-            Search the menu, add your items, then head to cart when you are ready.
-          </p>
         </div>
       </div>
 

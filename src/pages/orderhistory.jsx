@@ -341,9 +341,8 @@ const OrderHistory = ({ view = 'orders' }) => {
 
   return (
     <div className="order-history-container">
-      <div className="order-history-header">
+      <div className="order-history-header customer-header-block">
         <h1>{pageCopy.title}</h1>
-        <p>{pageCopy.description}</p>
       </div>
 
       <div className="order-history-content">

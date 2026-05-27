@@ -1089,7 +1089,6 @@ const Admin = () => {
       <div className="admin-page">
         <section className="admin-hero">
           <h1>{activeAdminTab.title}</h1>
-          <p>{activeAdminTab.description}</p>
         </section>
 
         {dbError && <div className="admin-error">{dbError}</div>}
