@@ -184,6 +184,10 @@ a {
   line-height: 1;
 }
 
+.nav-admin-count {
+  box-shadow: 0 0 0 2px rgba(255, 253, 248, 0.95);
+}
+
 .navbar-cart {
   position: relative;
   min-width: 88px;
@@ -1247,6 +1251,143 @@ a {
   line-height: 1.4;
 }
 
+.menu-service-selector {
+  margin-top: 18px;
+  max-width: 760px;
+}
+
+.menu-order-gate {
+  display: grid;
+  gap: 22px;
+  justify-items: center;
+  max-width: 760px;
+  padding: 30px 28px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.08)),
+    rgba(255, 255, 255, 0.05);
+  box-shadow: 0 18px 40px rgba(65, 47, 38, 0.18);
+}
+
+.menu-order-gate-copy,
+.menu-order-mode-label {
+  margin: 0;
+  color: var(--text-light);
+  line-height: 1.5;
+}
+
+.menu-order-gate-note {
+  margin: -6px 0 0;
+  color: rgba(255, 253, 248, 0.88);
+  font-size: 0.96rem;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.menu-order-gate-kicker {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 253, 248, 0.96);
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.menu-order-choice-buttons {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.menu-order-choice-button {
+  min-height: 170px;
+  padding: 22px 20px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 242, 233, 0.96));
+  color: var(--primary-color);
+  font-family: inherit;
+  font-size: 1.08rem;
+  font-weight: 900;
+  cursor: pointer;
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 16px;
+  box-shadow: 0 14px 26px rgba(65, 47, 38, 0.12);
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+
+.menu-order-choice-button:hover,
+.menu-order-choice-button:focus-visible {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 1), rgba(245, 236, 223, 1));
+  border-color: rgba(198, 144, 72, 0.5);
+  box-shadow: 0 18px 34px rgba(65, 47, 38, 0.16);
+  outline: none;
+  transform: translateY(-2px);
+}
+
+.menu-order-choice-icon {
+  width: 60px;
+  height: 60px;
+  display: grid;
+  place-items: center;
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(106, 111, 76, 0.16), rgba(198, 144, 72, 0.18));
+  color: var(--primary-color);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+.menu-order-choice-icon svg {
+  width: 28px;
+  height: 28px;
+}
+
+.menu-order-choice-label {
+  display: block;
+  color: var(--primary-color);
+  font-size: 1.14rem;
+}
+
+.menu-order-header-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.menu-order-back-button {
+  min-width: 104px;
+  min-height: 44px;
+  border: 1px solid rgba(255, 253, 248, 0.24);
+  background: linear-gradient(135deg, #7a432a, var(--primary-color));
+  color: #fff;
+  font-weight: 900;
+  box-shadow: 0 12px 24px rgba(65, 47, 38, 0.16);
+}
+
+.menu-order-back-button:hover,
+.menu-order-back-button:focus-visible {
+  background: linear-gradient(135deg, #8a4b2d, #6f3b25);
+  border-color: rgba(255, 253, 248, 0.3);
+  color: #fff;
+}
+
 .account-choice-group {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -1377,6 +1518,27 @@ a {
 }
 
 @media (max-width: 768px) {
+  .menu-order-gate {
+    padding: 24px 18px;
+  }
+
+  .menu-order-choice-buttons {
+    grid-template-columns: 1fr;
+  }
+
+  .menu-order-choice-button {
+    min-height: 132px;
+  }
+
+  .menu-order-header-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .menu-order-header-row .btn {
+    width: fit-content;
+  }
+
   .account-choice-group {
     grid-template-columns: 1fr;
   }
@@ -2381,6 +2543,18 @@ a {
 .order-total {
   text-align: right;
   line-height: 1.2;
+}
+
+.order-service-chip {
+  display: inline-flex;
+  width: fit-content;
+  margin-top: 12px;
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: rgba(106, 111, 76, 0.12);
+  color: var(--accent-color);
+  font-size: 0.78rem;
+  font-weight: 900;
 }
 
 .total-amount {
@@ -4415,6 +4589,53 @@ a {
   cursor: pointer;
 }
 
+.gcash-payment-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 156px;
+  gap: 18px;
+  align-items: center;
+  padding: 18px;
+  border: 1px solid rgba(65, 47, 38, 0.12);
+  border-radius: 8px;
+  background: var(--bg-light);
+}
+
+.gcash-payment-copy {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.payment-eyebrow {
+  color: var(--text-light);
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.gcash-payment-copy strong {
+  color: var(--primary-color);
+  font-size: 1.4rem;
+  overflow-wrap: anywhere;
+}
+
+.gcash-payment-copy p {
+  margin: 0;
+  color: var(--text-light);
+  line-height: 1.5;
+}
+
+.gcash-qr-image {
+  width: 156px;
+  aspect-ratio: 1;
+  padding: 8px;
+  border: 1px solid rgba(65, 47, 38, 0.14);
+  border-radius: 8px;
+  background: #fff;
+  object-fit: contain;
+}
+
 /* Review Section */
 .review-section {
   display: flex;
@@ -4498,6 +4719,15 @@ a {
 }
 
 @media (max-width: 768px) {
+  .gcash-payment-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .gcash-qr-image {
+    width: min(100%, 220px);
+    justify-self: center;
+  }
+
   .checkout-buttons {
     flex-direction: column;
   }

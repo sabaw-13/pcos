@@ -7,8 +7,11 @@ import { subscribeOrders } from '../services/database';
 import { isReservationOrder } from '../utils/reservationarrival';
 
 const ORDER_STATUS_STORAGE_PREFIX = 'persimmonay-order-status-seen';
+const ADMIN_NOTICE_STORAGE_PREFIX = 'persimmonay-admin-notice-seen';
 
 const getSeenStatusKey = (userId) => `${ORDER_STATUS_STORAGE_PREFIX}:${userId}`;
+const getAdminNoticeKey = (userId, noticeType) =>
+  `${ADMIN_NOTICE_STORAGE_PREFIX}:${userId}:${noticeType}`;
 
 const readSeenStatuses = (userId) => {
   try {
@@ -27,6 +30,22 @@ const saveSeenStatuses = (userId, orders) => {
   window.localStorage.setItem(getSeenStatusKey(userId), JSON.stringify(statuses));
 };
 
+const readAdminNoticeIds = (userId, noticeType) => {
+  try {
+    return JSON.parse(window.localStorage.getItem(getAdminNoticeKey(userId, noticeType)) || '[]');
+  } catch (error) {
+    return [];
+  }
+};
+
+const hasAdminNoticeSnapshot = (userId, noticeType) =>
+  window.localStorage.getItem(getAdminNoticeKey(userId, noticeType)) !== null;
+
+const saveAdminNoticeIds = (userId, noticeType, orders) => {
+  const seenIds = orders.map((order) => order.firebaseId || order.id);
+  window.localStorage.setItem(getAdminNoticeKey(userId, noticeType), JSON.stringify(seenIds));
+};
+
 const Navbar = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -35,11 +54,13 @@ const Navbar = () => {
   const { confirm } = useConfirm();
   const [customerOrders, setCustomerOrders] = useState([]);
   const [orderStatusNoticeCount, setOrderStatusNoticeCount] = useState(0);
+  const [adminOrderNoticeCount, setAdminOrderNoticeCount] = useState(0);
+  const [adminReservationNoticeCount, setAdminReservationNoticeCount] = useState(0);
   const cartItemCount = cart.reduce((total, item) => total + Number(item.quantity || 0), 0);
 
   const navItems = isCustomer
     ? [
-        { path: '/menu', label: 'Delivery', mobileLabel: 'Delivery' },
+        { path: '/menu', label: 'Order', mobileLabel: 'Order' },
         { path: '/reservation', label: 'Reservation', mobileLabel: 'Reserve' },
         { path: '/cart', label: 'Cart', mobileLabel: 'Cart' },
         { path: '/order-history', label: 'Orders', mobileLabel: 'Orders' },
@@ -88,7 +109,7 @@ const Navbar = () => {
     }
 
     const unsubscribe = subscribeOrders((orders) => {
-      const activeDeliveryOrders = orders.filter((order) =>
+      const activeCustomerOrders = orders.filter((order) =>
         order.customerId === currentUser.uid &&
         !isReservationOrder(order) &&
         !['Completed', 'Cancelled'].includes(order.status)
@@ -96,17 +117,17 @@ const Navbar = () => {
       const seenStatuses = readSeenStatuses(currentUser.uid);
       const hasStoredStatuses = Object.keys(seenStatuses).length > 0;
 
-      setCustomerOrders(activeDeliveryOrders);
+      setCustomerOrders(activeCustomerOrders);
 
       if (!hasStoredStatuses) {
-        saveSeenStatuses(currentUser.uid, activeDeliveryOrders);
+        saveSeenStatuses(currentUser.uid, activeCustomerOrders);
         setOrderStatusNoticeCount(0);
         return;
       }
 
       const mergedSeenStatuses = { ...seenStatuses };
       let addedNewOrderStatus = false;
-      const changedCount = activeDeliveryOrders.filter((order) => {
+      const changedCount = activeCustomerOrders.filter((order) => {
         const orderId = order.firebaseId || order.id;
 
         if (!seenStatuses[orderId]) {
@@ -140,6 +161,57 @@ const Navbar = () => {
     setOrderStatusNoticeCount(0);
   }, [currentUser, customerOrders, isCustomer, location.pathname]);
 
+  useEffect(() => {
+    if (!currentUser || !isAdmin) {
+      setAdminOrderNoticeCount(0);
+      setAdminReservationNoticeCount(0);
+      return undefined;
+    }
+
+    const currentAdminTab = new URLSearchParams(location.search).get('tab') || 'dashboard';
+
+    const unsubscribe = subscribeOrders((orders) => {
+      const deliveryQueue = orders.filter(
+        (order) => !isReservationOrder(order) && ['Waiting', 'Pending'].includes(order.status)
+      );
+      const reservationQueue = orders.filter(
+        (order) => isReservationOrder(order) && order.status === 'Pending'
+      );
+      const deliveryNoticeType = 'delivery-orders';
+      const reservationNoticeType = 'reservations';
+
+      if (!hasAdminNoticeSnapshot(currentUser.uid, deliveryNoticeType)) {
+        saveAdminNoticeIds(currentUser.uid, deliveryNoticeType, deliveryQueue);
+        setAdminOrderNoticeCount(0);
+      } else if (location.pathname === '/admin' && currentAdminTab === deliveryNoticeType) {
+        saveAdminNoticeIds(currentUser.uid, deliveryNoticeType, deliveryQueue);
+        setAdminOrderNoticeCount(0);
+      } else {
+        const seenDeliveryIds = new Set(readAdminNoticeIds(currentUser.uid, deliveryNoticeType));
+        const unseenDeliveryCount = deliveryQueue.filter(
+          (order) => !seenDeliveryIds.has(order.firebaseId || order.id)
+        ).length;
+        setAdminOrderNoticeCount(unseenDeliveryCount);
+      }
+
+      if (!hasAdminNoticeSnapshot(currentUser.uid, reservationNoticeType)) {
+        saveAdminNoticeIds(currentUser.uid, reservationNoticeType, reservationQueue);
+        setAdminReservationNoticeCount(0);
+      } else if (location.pathname === '/admin' && currentAdminTab === reservationNoticeType) {
+        saveAdminNoticeIds(currentUser.uid, reservationNoticeType, reservationQueue);
+        setAdminReservationNoticeCount(0);
+      } else {
+        const seenReservationIds = new Set(readAdminNoticeIds(currentUser.uid, reservationNoticeType));
+        const unseenReservationCount = reservationQueue.filter(
+          (order) => !seenReservationIds.has(order.firebaseId || order.id)
+        ).length;
+        setAdminReservationNoticeCount(unseenReservationCount);
+      }
+    });
+
+    return unsubscribe;
+  }, [currentUser, isAdmin, location.pathname, location.search]);
+
   const renderNavNotice = (item) => {
     if (isCustomer && item.path === '/cart' && cartItemCount > 0) {
       return (
@@ -153,6 +225,22 @@ const Navbar = () => {
       return (
         <span className="nav-cart-count nav-order-count" aria-label={`${orderStatusNoticeCount} order updates`}>
           {orderStatusNoticeCount}
+        </span>
+      );
+    }
+
+    if (isAdmin && item.path === '/admin?tab=delivery-orders' && adminOrderNoticeCount > 0) {
+      return (
+        <span className="nav-cart-count nav-admin-count" aria-label={`${adminOrderNoticeCount} new orders`}>
+          {adminOrderNoticeCount}
+        </span>
+      );
+    }
+
+    if (isAdmin && item.path === '/admin?tab=reservations' && adminReservationNoticeCount > 0) {
+      return (
+        <span className="nav-cart-count nav-admin-count" aria-label={`${adminReservationNoticeCount} new reservations`}>
+          {adminReservationNoticeCount}
         </span>
       );
     }

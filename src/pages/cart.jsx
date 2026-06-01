@@ -7,11 +7,12 @@ import CartIcon from '../components/carticon';
 
 const Cart = () => {
   const { confirm } = useConfirm();
-  const { cart, removeFromCart, updateQuantity, clearCart } = useContext(CartContext);
+  const { cart, orderMode, removeFromCart, updateQuantity, clearCart } = useContext(CartContext);
+  const isWalkIn = orderMode === 'walk-in';
 
   const subtotal = cart.reduce((total, item) => total + item.price * item.quantity, 0);
   const deliveryFee = 30;
-  const total = subtotal + deliveryFee;
+  const total = subtotal + (isWalkIn ? 0 : deliveryFee);
 
   const handleClearCart = async () => {
     const confirmed = await confirm({
@@ -88,14 +89,16 @@ const Cart = () => {
           <h2>Order Summary</h2>
 
           <div className="summary-details">
-            <div className="summary-row">
+          <div className="summary-row">
               <span>Subtotal</span>
               <span className="amount">P{subtotal.toFixed(2)}</span>
             </div>
-            <div className="summary-row">
-              <span>Delivery fee</span>
-              <span className="amount">P{deliveryFee.toFixed(2)}</span>
-            </div>
+            {!isWalkIn && (
+              <div className="summary-row">
+                <span>Delivery fee</span>
+                <span className="amount">P{deliveryFee.toFixed(2)}</span>
+              </div>
+            )}
             <div className="summary-divider"></div>
             <div className="summary-row total">
               <span>Total</span>
@@ -104,11 +107,11 @@ const Cart = () => {
           </div>
 
           <Link to="/checkout" className="btn btn-primary btn-full">
-            Continue to Checkout
+            {isWalkIn ? 'Continue to Receipt' : 'Continue to Checkout'}
           </Link>
 
           <Link to="/menu" className="btn btn-secondary btn-full">
-            Back to Menu
+            Back to Order
           </Link>
         </div>
       </div>

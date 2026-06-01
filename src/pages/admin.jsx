@@ -38,7 +38,7 @@ const adminTabs = [
     label: 'Orders',
     mobileLabel: 'Orders',
     title: 'Orders',
-    description: 'Receive and manage customer delivery orders.'
+    description: 'Receive and manage delivery and walk-in customer orders.'
   },
   {
     id: 'reservations',
@@ -70,16 +70,10 @@ const orderWorkflowTabs = [
     emptyText: 'No orders waiting to be received.'
   },
   {
-    id: 'preparing',
-    label: 'Preparing Food',
-    statuses: ['Received', 'Preparing'],
-    emptyText: 'No orders in food preparation.'
-  },
-  {
     id: 'delivery',
-    label: 'Delivery',
-    statuses: ['Delivering', 'Customer Received'],
-    emptyText: 'No orders out for delivery.'
+    label: 'In Progress',
+    statuses: ['Received', 'Preparing', 'Delivering', 'Customer Received'],
+    emptyText: 'No customer orders in progress.'
   },
   {
     id: 'completed',
@@ -205,6 +199,8 @@ const getTopSellingItems = (orders) => {
     .slice(0, 5);
 };
 
+const isWalkInOrder = (order) => order?.service === 'Walk In';
+
 const Admin = () => {
   const { authLoading, currentUser, isAdmin } = useAuth();
   const { confirm } = useConfirm();
@@ -289,11 +285,14 @@ const Admin = () => {
 
   const handleReceiveOrder = async (order) => {
     const isReservation = isReservationOrder(order);
+    const isWalkIn = isWalkInOrder(order);
     const confirmed = await confirm({
       title: isReservation ? 'Accept this reservation?' : 'Receive this order?',
       description: isReservation
         ? `${order.orderNumber || 'This reservation'} will move to waiting.`
-        : `${order.orderNumber || 'This request'} will move to the food preparation workflow.`,
+        : isWalkIn
+          ? `${order.orderNumber || 'This request'} will move to the cashier preparation queue.`
+          : `${order.orderNumber || 'This request'} will move directly to delivery.`,
       confirmText: isReservation ? 'Accept Reservation' : 'Receive Order',
       cancelText: 'Not Yet',
       tone: 'default'
@@ -303,7 +302,10 @@ const Admin = () => {
       return;
     }
 
-    await handleUpdateOrderStatus(order.firebaseId, isReservation ? 'Waiting' : 'Received');
+    await handleUpdateOrderStatus(
+      order.firebaseId,
+      isReservation ? 'Waiting' : isWalkIn ? 'Received' : 'Delivering'
+    );
     setSelectedOrder(null);
   };
 
@@ -401,8 +403,11 @@ const Admin = () => {
   const getPaymentMethodLabel = (paymentMethod) => {
     if (paymentMethod === 'cod') return 'Cash on Delivery';
     if (paymentMethod === 'gcash') return 'GCash';
+    if (paymentMethod === 'pay-at-counter') return 'Pay at Counter';
     return paymentMethod || 'Not specified';
   };
+
+  const getOrderPaymentMethod = (order) => order.payment?.method || order.paymentMethod;
 
   const handleCompleteCustomerReceivedOrder = async (order) => {
     const confirmed = await confirm({
@@ -422,6 +427,7 @@ const Admin = () => {
 
   const renderOrderAction = (order) => {
     const isUpdating = updatingOrderId === order.firebaseId;
+    const isWalkIn = isWalkInOrder(order);
 
     if (isReservationOrder(order)) {
       const reservationAdminStatus = getReservationAdminStatus(order);
@@ -492,17 +498,41 @@ const Admin = () => {
 
     switch (order.status) {
       case 'Received':
+        if (isWalkIn) {
+          return (
+            <button
+              type="button"
+              className="btn btn-primary btn-small"
+              onClick={() => handleUpdateOrderStatus(order.firebaseId, 'Preparing')}
+              disabled={isUpdating}
+            >
+              {isUpdating ? 'Updating...' : 'Preparing'}
+            </button>
+          );
+        }
         return (
           <button
             type="button"
             className="btn btn-primary btn-small"
-            onClick={() => handleUpdateOrderStatus(order.firebaseId, 'Preparing')}
+            onClick={() => handleUpdateOrderStatus(order.firebaseId, 'Delivering')}
             disabled={isUpdating}
           >
-            {isUpdating ? 'Updating...' : 'Food Preparation'}
+            {isUpdating ? 'Updating...' : 'Delivery'}
           </button>
         );
       case 'Preparing':
+        if (isWalkIn) {
+          return (
+            <button
+              type="button"
+              className="btn btn-primary btn-small"
+              onClick={() => handleUpdateOrderStatus(order.firebaseId, 'Completed')}
+              disabled={isUpdating}
+            >
+              {isUpdating ? 'Updating...' : 'Mark Completed'}
+            </button>
+          );
+        }
         return (
           <button
             type="button"
@@ -579,8 +609,24 @@ const Admin = () => {
             </div>
             <div>
               <span>Payment</span>
-              <strong>{getPaymentMethodLabel(selectedOrder.paymentMethod)}</strong>
+              <strong>{getPaymentMethodLabel(getOrderPaymentMethod(selectedOrder))}</strong>
             </div>
+            {!isReservationOrder(selectedOrder) && (
+              <>
+                {!isWalkInOrder(selectedOrder) && (
+                  <>
+                    <div>
+                      <span>GCash number</span>
+                      <strong>{selectedOrder.payment?.gcashNumber || 'Not provided'}</strong>
+                    </div>
+                    <div className="admin-order-detail-wide admin-payment-reference">
+                      <span>GCash reference number</span>
+                      <strong>{selectedOrder.payment?.referenceNumber || 'Not provided'}</strong>
+                    </div>
+                  </>
+                )}
+              </>
+            )}
             {isReservationOrder(selectedOrder) ? (
               <>
                 <div>
@@ -602,8 +648,12 @@ const Admin = () => {
               </>
             ) : (
               <div className="admin-order-detail-wide">
-                <span>Delivery address</span>
-                <strong>{getOrderAddress(selectedOrder)}</strong>
+                <span>{isWalkInOrder(selectedOrder) ? 'Receipt details' : 'Delivery address'}</span>
+                <strong>
+                  {isWalkInOrder(selectedOrder)
+                    ? 'Cashier will use this order number as the walk-in receipt.'
+                    : getOrderAddress(selectedOrder)}
+                </strong>
               </div>
             )}
           </div>
@@ -641,7 +691,9 @@ const Admin = () => {
                   ? 'Accepting...'
                   : isReservationOrder(selectedOrder)
                     ? 'Accept Reservation'
-                    : 'Accept Delivery'}
+                    : isWalkInOrder(selectedOrder)
+                      ? 'Accept Walk-In'
+                      : 'Accept Delivery'}
               </button>
             )}
             {isReservationOrder(selectedOrder) &&
@@ -806,7 +858,7 @@ const Admin = () => {
             <div className="admin-empty-state">
               {orderType === 'reservation'
                 ? 'No reservation orders yet.'
-                : 'No online delivery orders yet.'}
+                : 'No customer orders yet.'}
             </div>
           ) : orderType !== 'reservation' && filteredOrders.length === 0 ? (
             <div className="admin-empty-state">{currentWorkflowTab.emptyText}</div>
@@ -882,7 +934,7 @@ const Admin = () => {
       {
         label: 'Active Orders',
         value: activeDeliveryCount,
-        detail: 'Delivery queue'
+        detail: 'Delivery and walk-in queue'
       },
       {
         label: 'Pending Reservations',
@@ -924,7 +976,7 @@ const Admin = () => {
             <div className="admin-dashboard-card-header">
               <div>
                 <h3>Weekly Sales Trend</h3>
-                <p>Completed and customer-received delivery orders</p>
+                <p>Completed customer orders and fulfilled deliveries</p>
               </div>
               <strong>{formatCurrency(weeklySales)}</strong>
             </div>
@@ -970,8 +1022,8 @@ const Admin = () => {
         <section className="admin-dashboard-card">
           <div className="admin-dashboard-card-header">
             <div>
-              <h3>Recent Sales</h3>
-              <p>Latest completed delivery orders</p>
+                <h3>Recent Sales</h3>
+                <p>Latest completed customer orders</p>
             </div>
           </div>
           <div className="admin-sales-table">

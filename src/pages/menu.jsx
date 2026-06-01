@@ -5,6 +5,24 @@ import CartPreview from '../components/cartpreview';
 import { baseMenuItems, menuCategories } from '../data/menudata';
 import { subscribeMenuItems } from '../services/database';
 
+const DeliveryIcon = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <path
+      d="M3 7.5H14V16.5H3V7.5ZM14 10H18L21 13V16.5H14V10ZM7.5 18.5A1.5 1.5 0 1 1 7.5 21.5A1.5 1.5 0 0 1 7.5 18.5ZM17.5 18.5A1.5 1.5 0 1 1 17.5 21.5A1.5 1.5 0 0 1 17.5 18.5Z"
+      fill="currentColor"
+    />
+  </svg>
+);
+
+const WalkInIcon = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <path
+      d="M12 4.25A2.25 2.25 0 1 1 12 8.75A2.25 2.25 0 0 1 12 4.25ZM10 10H14L16.5 19.5H14.25L12.9 14.75H11.1L9.75 19.5H7.5L10 10ZM7 11.25H9V14.25H7A2.25 2.25 0 0 1 4.75 12A2.25 2.25 0 0 1 7 9.75H8.5V11.25H7ZM15 11.25H17A2.25 2.25 0 0 0 19.25 9A2.25 2.25 0 0 0 17 6.75H15.5V8.25H17A.75.75 0 0 1 17 9.75H15V11.25Z"
+      fill="currentColor"
+    />
+  </svg>
+);
+
 const SearchIcon = () => (
   <svg viewBox="0 0 24 24" aria-hidden="true">
     <circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" strokeWidth="2" />
@@ -17,7 +35,7 @@ const Menu = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [customMenuItems, setCustomMenuItems] = useState([]);
   const [menuError, setMenuError] = useState('');
-  const { cart } = useContext(CartContext);
+  const { cart, orderMode, setOrderMode } = useContext(CartContext);
 
   const categories = menuCategories;
   const menuItems = [...baseMenuItems, ...customMenuItems];
@@ -40,11 +58,63 @@ const Menu = () => {
     return matchesCategory && matchesSearch;
   });
 
+  if (!orderMode) {
+    return (
+      <div className="menu-container">
+        <div className="menu-header">
+          <div className="menu-header-content customer-header-block menu-order-gate">
+            <span className="menu-order-gate-kicker">Start Order</span>
+            <h1 className="menu-title">Order</h1>
+            <p className="menu-order-gate-note">
+              Choose your order type first.
+            </p>
+            <div className="menu-order-choice-buttons">
+              <button
+                type="button"
+                className="menu-order-choice-button"
+                onClick={() => setOrderMode('delivery')}
+              >
+                <span className="menu-order-choice-icon">
+                  <DeliveryIcon />
+                </span>
+                <span className="menu-order-choice-label">Delivery</span>
+              </button>
+              <button
+                type="button"
+                className="menu-order-choice-button"
+                onClick={() => setOrderMode('walk-in')}
+              >
+                <span className="menu-order-choice-icon">
+                  <WalkInIcon />
+                </span>
+                <span className="menu-order-choice-label">Walk In</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="menu-container">
       <div className="menu-header">
         <div className="menu-header-content customer-header-block">
-          <h1 className="menu-title">Order Food and Drinks</h1>
+          <div className="menu-order-header-row">
+            <div>
+              <h1 className="menu-title">Order Food and Drinks</h1>
+              <p className="menu-order-mode-label">
+                {orderMode === 'walk-in' ? 'Walk In order' : 'Delivery order'}
+              </p>
+            </div>
+            <button
+              type="button"
+              className="btn menu-order-back-button"
+              onClick={() => setOrderMode('')}
+            >
+              Back
+            </button>
+          </div>
         </div>
       </div>
 

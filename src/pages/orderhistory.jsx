@@ -23,10 +23,6 @@ const trackingSteps = [
     description: 'Staff confirmed the order in the admin panel.'
   },
   {
-    label: 'Preparing',
-    description: 'Your food and drinks are being prepared.'
-  },
-  {
     label: 'Food is being delivered',
     description: 'Your order is on the way to your delivery address.'
   },
@@ -44,10 +40,10 @@ const statusStepMap = {
   Waiting: 0,
   Pending: 0,
   Received: 1,
-  Preparing: 2,
-  Delivering: 3,
-  'Customer Received': 4,
-  Completed: 5
+  Preparing: 1,
+  Delivering: 2,
+  'Customer Received': 3,
+  Completed: 4
 };
 
 const getTrackingIndex = (status) => statusStepMap[status] ?? 0;
@@ -57,7 +53,7 @@ const getTrackingMessage = (order) => {
     case 'Received':
       return 'Your order has been received by the cafe.';
     case 'Preparing':
-      return 'The cafe is preparing your order now.';
+      return 'Your order is moving to delivery.';
     case 'Delivering':
       return 'Your food is being delivered.';
     case 'Customer Received':
@@ -111,6 +107,8 @@ const getTravelEstimate = (distanceKm) => {
 
   return `${lowEstimate}-${highEstimate} minutes`;
 };
+
+const isWalkInOrder = (order) => order?.service === 'Walk In';
 
 const OrderHistory = ({ view = 'orders' }) => {
   const { currentUser, isAdmin } = useAuth();
@@ -183,10 +181,10 @@ const OrderHistory = ({ view = 'orders' }) => {
       }
     : {
         title: 'Active Orders',
-        description: 'Track your current delivery orders here.',
+        description: 'Track your current delivery and walk-in orders here.',
         emptyTitle: 'No Active Orders',
-        emptyText: 'Active delivery orders will appear here after you place an order.',
-        actionLabel: 'Order Delivery'
+        emptyText: 'Active orders will appear here after you place an order.',
+        actionLabel: 'Order Now'
       };
 
   const toggleTracking = (orderId) => {
@@ -398,9 +396,12 @@ const OrderHistory = ({ view = 'orders' }) => {
                     <span>Total:</span>
                     <span className="total-amount">P{Number(order.total || 0).toFixed(2)}</span>
                   </div>
+                  {!isReservationOrder(order) && (
+                    <span className="order-service-chip">{order.service || 'Online Delivery'}</span>
+                  )}
                 </div>
 
-                {!isReservationOrder(order) && !isHistoryView && (
+                {!isReservationOrder(order) && !isWalkInOrder(order) && !isHistoryView && (
                   <div className="order-card-footer order-actions-inline">
                     <button
                       type="button"
@@ -423,7 +424,7 @@ const OrderHistory = ({ view = 'orders' }) => {
                     )}
                   </div>
                 )}
-                {!isHistoryView && trackedOrderIds[order.id] && renderTrackingPanel(order)}
+                {!isHistoryView && !isWalkInOrder(order) && trackedOrderIds[order.id] && renderTrackingPanel(order)}
               </div>
             ))}
           </div>
