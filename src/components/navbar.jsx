@@ -70,6 +70,7 @@ const Navbar = () => {
         ? [
             { path: '/admin?tab=dashboard', label: 'Dashboard', mobileLabel: 'Dash' },
             { path: '/admin?tab=delivery-orders', label: 'Orders', mobileLabel: 'Orders' },
+            { path: '/admin?tab=walk-in', label: 'Walk In', mobileLabel: 'Walk In' },
             { path: '/admin?tab=reservations', label: 'Reservations', mobileLabel: 'Reserve' },
             { path: '/admin?tab=add-item', label: 'Add Item', mobileLabel: 'Add Item' }
           ]
@@ -111,6 +112,7 @@ const Navbar = () => {
     const unsubscribe = subscribeOrders((orders) => {
       const activeCustomerOrders = orders.filter((order) =>
         order.customerId === currentUser.uid &&
+        order.service !== 'Walk In' &&
         !isReservationOrder(order) &&
         !['Completed', 'Cancelled'].includes(order.status)
       );

@@ -11,7 +11,7 @@ const CAFE_GCASH_QR_IMAGE = process.env.REACT_APP_CAFE_GCASH_QR_IMAGE || '/image
 const Checkout = () => {
   const navigate = useNavigate();
   const { currentUser, isAdmin } = useAuth();
-  const { cart, clearCart, orderMode } = useContext(CartContext);
+  const { cart, clearCart } = useContext(CartContext);
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
     name: '',
@@ -21,13 +21,11 @@ const Checkout = () => {
     paymentMethod: 'gcash',
     paymentReference: ''
   });
-
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [placedOrderNumber, setPlacedOrderNumber] = useState('');
   const [orderError, setOrderError] = useState('');
   const [deliveryError, setDeliveryError] = useState('');
   const [savingOrder, setSavingOrder] = useState(false);
-  const isWalkIn = orderMode === 'walk-in';
 
   useEffect(() => {
     if (!currentUser || isAdmin) {
@@ -41,25 +39,20 @@ const Checkout = () => {
     }));
   }, [currentUser, isAdmin]);
 
-  const subtotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+  const subtotal = cart.reduce((total, item) => total + item.price * item.quantity, 0);
   const deliveryFee = 30;
-  const total = subtotal + (isWalkIn ? 0 : deliveryFee);
+  const total = subtotal + deliveryFee;
+  const deliveryFields = ['name', 'email', 'phone', 'address'];
+  const paymentFields = ['paymentReference'];
 
-  const customerFields = isWalkIn
-    ? ['name', 'email', 'phone']
-    : ['name', 'email', 'phone', 'address'];
-  const paymentFields = isWalkIn ? [] : ['paymentReference'];
-  const serviceLabel = isWalkIn ? 'Walk In' : 'Online Delivery';
-  const orderNumberPrefix = isWalkIn ? '#WI-' : '#DL-';
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
+  const handleInputChange = (event) => {
+    const { name, value } = event.target;
+    setFormData((current) => ({
+      ...current,
       [name]: value
     }));
 
-    if (customerFields.includes(name)) {
+    if (deliveryFields.includes(name)) {
       setDeliveryError('');
     }
 
@@ -70,14 +63,10 @@ const Checkout = () => {
 
   const handleNextStep = () => {
     if (currentStep === 1) {
-      const missingCustomerFields = customerFields.filter((field) => formData[field].trim() === '');
+      const missingDeliveryFields = deliveryFields.filter((field) => formData[field].trim() === '');
 
-      if (missingCustomerFields.length > 0) {
-        setDeliveryError(
-          isWalkIn
-            ? 'Please fill up all customer information fields before continuing.'
-            : 'Please fill up all delivery information fields before continuing.'
-        );
+      if (missingDeliveryFields.length > 0) {
+        setDeliveryError('Please fill up all delivery information fields before continuing.');
         return;
       }
     }
@@ -114,15 +103,11 @@ const Checkout = () => {
       return;
     }
 
-    const missingCustomerFields = customerFields.filter((field) => formData[field].trim() === '');
+    const missingDeliveryFields = deliveryFields.filter((field) => formData[field].trim() === '');
 
-    if (missingCustomerFields.length > 0) {
+    if (missingDeliveryFields.length > 0) {
       setCurrentStep(1);
-      setDeliveryError(
-        isWalkIn
-          ? 'Please fill up all customer information fields before placing your order.'
-          : 'Please fill up all delivery information fields before placing your order.'
-      );
+      setDeliveryError('Please fill up all delivery information fields before placing your order.');
       return;
     }
 
@@ -134,42 +119,32 @@ const Checkout = () => {
       return;
     }
 
-    const orderNumber = `${orderNumberPrefix}${Date.now().toString().slice(-6)}`;
+    const orderNumber = `#DL-${Date.now().toString().slice(-6)}`;
 
     try {
       setSavingOrder(true);
-      const orderPayload = {
+      await addOrder({
         orderNumber,
         customer: formData.name,
-        service: serviceLabel,
+        service: 'Online Delivery',
         items: cart.map((item) => `${item.name} x ${item.quantity}`),
         total,
-        status: isWalkIn ? 'Pending' : 'Waiting',
+        status: 'Waiting',
         customerId: currentUser.uid,
         contact: {
           email: formData.email || currentUser.email,
           phone: formData.phone
         },
-        paymentMethod: isWalkIn ? 'pay-at-counter' : formData.paymentMethod
-      };
-
-      if (isWalkIn) {
-        orderPayload.receipt = {
-          type: 'Walk-in receipt',
-          generatedAt: Date.now()
-        };
-      } else {
-        orderPayload.deliveryAddress = {
+        deliveryAddress: {
           street: formData.address
-        };
-        orderPayload.payment = {
+        },
+        paymentMethod: formData.paymentMethod,
+        payment: {
           method: formData.paymentMethod,
           gcashNumber: CAFE_GCASH_NUMBER,
           referenceNumber: formData.paymentReference.trim()
-        };
-      }
-
-      await addOrder(orderPayload);
+        }
+      });
       setPlacedOrderNumber(orderNumber);
       setOrderPlaced(true);
       setOrderError('');
@@ -178,7 +153,7 @@ const Checkout = () => {
         navigate('/order-history');
       }, 2000);
     } catch (error) {
-      setOrderError(`Unable to save this ${isWalkIn ? 'walk-in' : 'delivery'} order to Firebase.`);
+      setOrderError('Unable to save this delivery order to Firebase.');
     } finally {
       setSavingOrder(false);
     }
@@ -189,16 +164,10 @@ const Checkout = () => {
       <div className="checkout-container">
         <div className="success-screen">
           <div className="success-animation">✓</div>
-          <h1>{isWalkIn ? 'Receipt Created Successfully!' : 'Order Placed Successfully!'}</h1>
-          <p>
-            {isWalkIn
-              ? 'Your walk-in order is now queued for the cashier. Present this receipt number at the counter.'
-              : 'Your online delivery order has been sent and will be delivered soon.'}
-          </p>
+          <h1>Order Placed Successfully!</h1>
+          <p>Your online delivery order has been sent and will be delivered soon.</p>
           <div className="order-number">{placedOrderNumber}</div>
-          <p className="delivery-time">
-            {isWalkIn ? 'Please proceed to the cashier for payment and claim.' : 'Estimated delivery: 15-20 minutes'}
-          </p>
+          <p className="delivery-time">Estimated delivery: 15-20 minutes</p>
         </div>
       </div>
     );
@@ -227,7 +196,7 @@ const Checkout = () => {
       <div className="checkout-layout">
         <div className="checkout-content">
           {currentStep === 1 && (
-            <CheckoutStep title={isWalkIn ? 'Customer Information' : 'Delivery Information'}>
+            <CheckoutStep title="Delivery Information">
               <form className="form-group">
                 <div className="form-row">
                   <input
@@ -262,72 +231,58 @@ const Checkout = () => {
                     required
                   />
                 </div>
-                {!isWalkIn && (
-                  <div className="form-row">
-                    <input
-                      type="text"
-                      name="address"
-                      placeholder="Street Address"
-                      value={formData.address}
-                      onChange={handleInputChange}
-                      className="form-input"
-                      required
-                    />
-                  </div>
-                )}
+                <div className="form-row">
+                  <input
+                    type="text"
+                    name="address"
+                    placeholder="Street Address"
+                    value={formData.address}
+                    onChange={handleInputChange}
+                    className="form-input"
+                    required
+                  />
+                </div>
               </form>
               {deliveryError && <p className="checkout-error">{deliveryError}</p>}
             </CheckoutStep>
           )}
 
           {currentStep === 2 && (
-            <CheckoutStep title={isWalkIn ? 'Receipt Details' : 'Payment Information'}>
-              {isWalkIn ? (
-                <div className="gcash-payment-panel">
-                  <div className="gcash-payment-copy">
-                    <span className="payment-eyebrow">Walk-in receipt</span>
-                    <strong>Pay at the cashier</strong>
-                    <p>Your order will be sent to the cashier queue and a receipt number will be generated for claiming.</p>
-                  </div>
+            <CheckoutStep title="Payment Information">
+              <div className="payment-methods">
+                <label className="payment-method active">
+                  <input
+                    type="radio"
+                    name="paymentMethod"
+                    value="gcash"
+                    checked
+                    readOnly
+                  />
+                  <span className="method-label">GCash</span>
+                </label>
+              </div>
+
+              <div className="gcash-payment-panel">
+                <div className="gcash-payment-copy">
+                  <span className="payment-eyebrow">Send payment to</span>
+                  <strong>{CAFE_GCASH_NUMBER}</strong>
+                  <p>Pay the exact total, then enter the GCash reference number below.</p>
                 </div>
-              ) : (
-                <>
-                  <div className="payment-methods">
-                    <label className="payment-method active">
-                      <input
-                        type="radio"
-                        name="paymentMethod"
-                        value="gcash"
-                        checked
-                        readOnly
-                      />
-                      <span className="method-label">GCash</span>
-                    </label>
-                  </div>
+                <img src={CAFE_GCASH_QR_IMAGE} alt="Persimmonay Cafe GCash QR code" className="gcash-qr-image" />
+              </div>
 
-                  <div className="gcash-payment-panel">
-                    <div className="gcash-payment-copy">
-                      <span className="payment-eyebrow">Send payment to</span>
-                      <strong>{CAFE_GCASH_NUMBER}</strong>
-                      <p>Pay the exact total, then enter the GCash reference number below.</p>
-                    </div>
-                    <img src={CAFE_GCASH_QR_IMAGE} alt="Persimmonay Cafe GCash QR code" className="gcash-qr-image" />
-                  </div>
-
-                  <label className="form-field">
-                    <span>GCash reference number</span>
-                    <input
-                      type="text"
-                      name="paymentReference"
-                      placeholder="Enter GCash reference number"
-                      value={formData.paymentReference}
-                      onChange={handleInputChange}
-                      className="form-input"
-                      required
-                    />
-                  </label>
-                </>
-              )}
+              <label className="form-field">
+                <span>GCash reference number</span>
+                <input
+                  type="text"
+                  name="paymentReference"
+                  placeholder="Enter GCash reference number"
+                  value={formData.paymentReference}
+                  onChange={handleInputChange}
+                  className="form-input"
+                  required
+                />
+              </label>
             </CheckoutStep>
           )}
 
@@ -336,7 +291,7 @@ const Checkout = () => {
               <div className="review-section">
                 <h3>Order Items</h3>
                 <div className="review-items">
-                  {cart.map(item => (
+                  {cart.map((item) => (
                     <div key={item.id} className="review-item">
                       <span>{item.name} x {item.quantity}</span>
                       <span>P{(item.price * item.quantity).toFixed(2)}</span>
@@ -349,12 +304,10 @@ const Checkout = () => {
                     <span>Subtotal</span>
                     <span>P{subtotal.toFixed(2)}</span>
                   </div>
-                  {!isWalkIn && (
-                    <div className="summary-row">
-                      <span>Delivery fee</span>
-                      <span>P{deliveryFee.toFixed(2)}</span>
-                    </div>
-                  )}
+                  <div className="summary-row">
+                    <span>Delivery fee</span>
+                    <span>P{deliveryFee.toFixed(2)}</span>
+                  </div>
                   <div className="summary-total">
                     <span>Total</span>
                     <span>P{total.toFixed(2)}</span>
@@ -362,17 +315,17 @@ const Checkout = () => {
                 </div>
 
                 <div className="review-details">
-                  <h3>{isWalkIn ? 'Customer Details' : 'Delivery Details'}</h3>
+                  <h3>Delivery Details</h3>
                   <p><strong>{formData.name}</strong></p>
-                  {!isWalkIn && <p>{formData.address}</p>}
+                  <p>{formData.address}</p>
                   <p className="contact">{formData.phone}</p>
                 </div>
 
                 <div className="review-details">
-                  <h3>{isWalkIn ? 'Receipt Details' : 'Payment Details'}</h3>
-                  <p><strong>{isWalkIn ? 'Pay at Counter' : 'GCash'}</strong></p>
-                  <p>{isWalkIn ? 'A cashier receipt number will be created for this order.' : `Paid to: ${CAFE_GCASH_NUMBER}`}</p>
-                  {!isWalkIn && <p className="contact">Reference: {formData.paymentReference}</p>}
+                  <h3>Payment Details</h3>
+                  <p><strong>GCash</strong></p>
+                  <p>Paid to: {CAFE_GCASH_NUMBER}</p>
+                  <p className="contact">Reference: {formData.paymentReference}</p>
                 </div>
               </div>
             </CheckoutStep>
@@ -400,7 +353,7 @@ const Checkout = () => {
                 className="btn btn-primary btn-success"
                 disabled={savingOrder}
               >
-                {savingOrder ? 'Saving Order...' : isWalkIn ? 'Create Receipt' : 'Place Order'}
+                {savingOrder ? 'Saving Order...' : 'Place Order'}
               </button>
             )}
           </div>
@@ -410,7 +363,7 @@ const Checkout = () => {
         <div className="checkout-summary">
           <h3>Order Summary</h3>
           <div className="summary-items">
-            {cart.map(item => (
+            {cart.map((item) => (
               <div key={item.id} className="summary-item">
                 <span>{item.name}</span>
                 <span className="qty">x{item.quantity}</span>
@@ -423,12 +376,10 @@ const Checkout = () => {
               <span>Subtotal:</span>
               <span>P{subtotal.toFixed(2)}</span>
             </div>
-            {!isWalkIn && (
-              <div className="total-row">
-                <span>Delivery fee:</span>
-                <span>P{deliveryFee.toFixed(2)}</span>
-              </div>
-            )}
+            <div className="total-row">
+              <span>Delivery fee:</span>
+              <span>P{deliveryFee.toFixed(2)}</span>
+            </div>
             <div className="total-row grand-total">
               <span>Total:</span>
               <span>P{total.toFixed(2)}</span>

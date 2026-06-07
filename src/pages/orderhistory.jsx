@@ -108,8 +108,6 @@ const getTravelEstimate = (distanceKm) => {
   return `${lowEstimate}-${highEstimate} minutes`;
 };
 
-const isWalkInOrder = (order) => order?.service === 'Walk In';
-
 const OrderHistory = ({ view = 'orders' }) => {
   const { currentUser, isAdmin } = useAuth();
   const { confirm } = useConfirm();
@@ -120,6 +118,7 @@ const OrderHistory = ({ view = 'orders' }) => {
   const [customerLocation, setCustomerLocation] = useState(null);
   const [locationError, setLocationError] = useState('');
   const [locatingCustomer, setLocatingCustomer] = useState(false);
+  const [historyFilter, setHistoryFilter] = useState('all');
   const isHistoryView = view === 'history';
 
   useEffect(() => {
@@ -163,12 +162,26 @@ const OrderHistory = ({ view = 'orders' }) => {
     order.status === 'Cancelled' ||
     getReservationArrivalStatus(order) === 'Cancelled';
 
-  const visibleOrders = orders.filter((order) => {
-    if (isHistoryView) {
-      return isFinishedRecord(order);
+  const matchesHistoryFilter = (order) => {
+    if (historyFilter === 'delivery') {
+      return !isReservationOrder(order);
     }
 
-    return !isReservationOrder(order) && !isFinishedRecord(order);
+    if (historyFilter === 'reservation') {
+      return isReservationOrder(order);
+    }
+
+    return true;
+  };
+
+  const visibleOrders = orders.filter((order) => {
+    const isCustomerWalkInRecord = order.service === 'Walk In';
+
+    if (isHistoryView) {
+      return isFinishedRecord(order) && !isCustomerWalkInRecord && matchesHistoryFilter(order);
+    }
+
+    return !isReservationOrder(order) && !isFinishedRecord(order) && !isCustomerWalkInRecord;
   });
 
   const pageCopy = isHistoryView
@@ -181,10 +194,10 @@ const OrderHistory = ({ view = 'orders' }) => {
       }
     : {
         title: 'Active Orders',
-        description: 'Track your current delivery and walk-in orders here.',
+        description: 'Track your current delivery orders here.',
         emptyTitle: 'No Active Orders',
-        emptyText: 'Active orders will appear here after you place an order.',
-        actionLabel: 'Order Now'
+        emptyText: 'Active delivery orders will appear here after you place an order.',
+        actionLabel: 'Order Delivery'
       };
 
   const toggleTracking = (orderId) => {
@@ -340,7 +353,24 @@ const OrderHistory = ({ view = 'orders' }) => {
   return (
     <div className="order-history-container">
       <div className="order-history-header customer-header-block">
-        <h1>{pageCopy.title}</h1>
+        <div>
+          <h1>{pageCopy.title}</h1>
+        </div>
+        {currentUser && !isAdmin && isHistoryView && (
+          <label className="order-history-filter">
+            <span>Show</span>
+            <select
+              value={historyFilter}
+              onChange={(event) => setHistoryFilter(event.target.value)}
+              className="form-input"
+              aria-label="Filter order history"
+            >
+              <option value="all">All History</option>
+              <option value="delivery">Delivery Orders</option>
+              <option value="reservation">Reservations</option>
+            </select>
+          </label>
+        )}
       </div>
 
       <div className="order-history-content">
@@ -396,12 +426,9 @@ const OrderHistory = ({ view = 'orders' }) => {
                     <span>Total:</span>
                     <span className="total-amount">P{Number(order.total || 0).toFixed(2)}</span>
                   </div>
-                  {!isReservationOrder(order) && (
-                    <span className="order-service-chip">{order.service || 'Online Delivery'}</span>
-                  )}
                 </div>
 
-                {!isReservationOrder(order) && !isWalkInOrder(order) && !isHistoryView && (
+                {!isReservationOrder(order) && !isHistoryView && (
                   <div className="order-card-footer order-actions-inline">
                     <button
                       type="button"
@@ -424,7 +451,7 @@ const OrderHistory = ({ view = 'orders' }) => {
                     )}
                   </div>
                 )}
-                {!isHistoryView && !isWalkInOrder(order) && trackedOrderIds[order.id] && renderTrackingPanel(order)}
+                {!isHistoryView && trackedOrderIds[order.id] && renderTrackingPanel(order)}
               </div>
             ))}
           </div>

@@ -2,11 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/authcontext';
 import { useConfirm } from '../context/confirmcontext';
+import CategoryIcon from '../components/categoryicon';
 import ReservationRouteMap from '../components/reservationroutemap';
-import { menuCategories } from '../data/menudata';
+import { baseMenuItems, menuCategories } from '../data/menudata';
 import {
+  addOrder,
   addMenuItem,
   deleteOrder,
+  subscribeMenuItems,
   subscribeOrders,
   updateOrderStatus,
   updateReservationArrivalStatus
@@ -21,8 +24,13 @@ const emptyItemForm = {
   price: '',
   category: 'drinks',
   description: '',
-  stock: '',
   image: 'Drink'
+};
+
+const emptyWalkInForm = {
+  customer: '',
+  selectedItemId: '',
+  quantity: '1'
 };
 
 const adminTabs = [
@@ -38,7 +46,14 @@ const adminTabs = [
     label: 'Orders',
     mobileLabel: 'Orders',
     title: 'Orders',
-    description: 'Receive and manage delivery and walk-in customer orders.'
+    description: 'Receive and manage customer delivery orders.'
+  },
+  {
+    id: 'walk-in',
+    label: 'Walk In',
+    mobileLabel: 'Walk In',
+    title: 'Walk-In Counter',
+    description: 'Staff can receive walk-in orders and mark them completed from the counter.'
   },
   {
     id: 'reservations',
@@ -206,21 +221,40 @@ const Admin = () => {
   const { confirm } = useConfirm();
   const [searchParams] = useSearchParams();
   const [orders, setOrders] = useState([]);
+  const [customMenuItems, setCustomMenuItems] = useState([]);
   const [itemForm, setItemForm] = useState(emptyItemForm);
+  const [walkInForm, setWalkInForm] = useState(emptyWalkInForm);
+  const [walkInItems, setWalkInItems] = useState([]);
   const [dbError, setDbError] = useState('');
   const [savingItem, setSavingItem] = useState(false);
+  const [savingWalkInOrder, setSavingWalkInOrder] = useState(false);
+  const [walkInSuccess, setWalkInSuccess] = useState('');
   const [deletingOrderId, setDeletingOrderId] = useState('');
   const [updatingOrderId, setUpdatingOrderId] = useState('');
   const [activeTab, setActiveTab] = useState(() => getValidAdminTab(searchParams.get('tab')));
   const [activeOrderTab, setActiveOrderTab] = useState('receiving');
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [selectedMapOrder, setSelectedMapOrder] = useState(null);
+  const menuItems = [...baseMenuItems, ...customMenuItems];
+  const walkInMenuItems = [...menuItems].sort((a, b) =>
+    String(a.name || '').localeCompare(String(b.name || ''), 'en', { sensitivity: 'base' })
+  );
+  const firstWalkInMenuItemId = walkInMenuItems[0] ? String(walkInMenuItems[0].id) : '';
 
   useEffect(() => {
     setActiveTab(getValidAdminTab(searchParams.get('tab')));
   }, [searchParams]);
 
-  const deliveryOrders = orders.filter((order) => !isReservationOrder(order));
+  useEffect(() => {
+    if (!walkInForm.selectedItemId && firstWalkInMenuItemId) {
+      setWalkInForm((current) => ({
+        ...current,
+        selectedItemId: firstWalkInMenuItemId
+      }));
+    }
+  }, [firstWalkInMenuItemId, walkInForm.selectedItemId]);
+
+  const deliveryOrders = orders.filter((order) => !isReservationOrder(order) && !isWalkInOrder(order));
   const reservationOrders = orders.filter((order) => isReservationOrder(order));
 
   const matchesOrderWorkflowTab = (order, tab, orderType) => {
@@ -268,6 +302,21 @@ const Admin = () => {
 
     return () => {
       unsubscribeOrders();
+    };
+  }, [authLoading, isAdmin]);
+
+  useEffect(() => {
+    if (authLoading || !isAdmin) {
+      return undefined;
+    }
+
+    const unsubscribeMenuItems = subscribeMenuItems(
+      setCustomMenuItems,
+      () => setDbError('Unable to load menu items from Firebase.')
+    );
+
+    return () => {
+      unsubscribeMenuItems();
     };
   }, [authLoading, isAdmin]);
 
@@ -401,6 +450,7 @@ const Admin = () => {
   };
 
   const getPaymentMethodLabel = (paymentMethod) => {
+    if (paymentMethod === 'cash') return 'Cash';
     if (paymentMethod === 'cod') return 'Cash on Delivery';
     if (paymentMethod === 'gcash') return 'GCash';
     if (paymentMethod === 'pay-at-counter') return 'Pay at Counter';
@@ -503,10 +553,10 @@ const Admin = () => {
             <button
               type="button"
               className="btn btn-primary btn-small"
-              onClick={() => handleUpdateOrderStatus(order.firebaseId, 'Preparing')}
+              onClick={() => handleUpdateOrderStatus(order.firebaseId, 'Completed')}
               disabled={isUpdating}
             >
-              {isUpdating ? 'Updating...' : 'Preparing'}
+              {isUpdating ? 'Updating...' : 'Mark Completed'}
             </button>
           );
         }
@@ -645,13 +695,13 @@ const Admin = () => {
                   <span>Reservation notes</span>
                   <strong>{selectedOrder.reservation?.notes || 'No special request'}</strong>
                 </div>
-              </>
+              </> 
             ) : (
               <div className="admin-order-detail-wide">
-                <span>{isWalkInOrder(selectedOrder) ? 'Receipt details' : 'Delivery address'}</span>
+                <span>{isWalkInOrder(selectedOrder) ? 'Counter note' : 'Delivery address'}</span>
                 <strong>
                   {isWalkInOrder(selectedOrder)
-                    ? 'Cashier will use this order number as the walk-in receipt.'
+                    ? 'Use this order number as the claim number for the walk-in order.'
                     : getOrderAddress(selectedOrder)}
                 </strong>
               </div>
@@ -808,7 +858,7 @@ const Admin = () => {
       category: itemForm.category,
       description: itemForm.description,
       image: itemForm.image,
-      stock: Number(itemForm.stock),
+      stock: 20,
       staffAdded: true
     };
 
@@ -821,6 +871,99 @@ const Admin = () => {
       setDbError('Unable to save this item to Firebase.');
     } finally {
       setSavingItem(false);
+    }
+  };
+
+  const handleWalkInInputChange = (event) => {
+    const { name, value } = event.target;
+    setWalkInForm((current) => ({
+      ...current,
+      [name]: value
+    }));
+    setDbError('');
+    setWalkInSuccess('');
+  };
+
+  const handleAddWalkInItem = () => {
+    const selectedMenuItem = menuItems.find((item) => String(item.id) === String(walkInForm.selectedItemId));
+    const quantity = Math.max(1, Number(walkInForm.quantity) || 1);
+
+    if (!selectedMenuItem) {
+      setDbError('Select a menu item first.');
+      return;
+    }
+
+    setWalkInItems((currentItems) => {
+      const existingItem = currentItems.find((item) => item.id === selectedMenuItem.id);
+
+      if (!existingItem) {
+        return [
+          ...currentItems,
+          {
+            id: selectedMenuItem.id,
+            name: selectedMenuItem.name,
+            price: Number(selectedMenuItem.price || 0),
+            quantity
+          }
+        ];
+      }
+
+      return currentItems.map((item) =>
+        item.id === selectedMenuItem.id
+          ? { ...item, quantity: item.quantity + quantity }
+          : item
+      );
+    });
+
+    setWalkInForm((current) => ({
+      ...current,
+      selectedItemId: firstWalkInMenuItemId,
+      quantity: '1'
+    }));
+    setDbError('');
+    setWalkInSuccess('');
+  };
+
+  const handleRemoveWalkInItem = (itemId) => {
+    setWalkInItems((currentItems) => currentItems.filter((item) => item.id !== itemId));
+    setDbError('');
+    setWalkInSuccess('');
+  };
+
+  const handleRecordWalkInOrder = async (event) => {
+    event.preventDefault();
+
+    if (walkInItems.length === 0) {
+      setDbError('Add at least one menu item before saving this walk-in order.');
+      return;
+    }
+
+    const orderNumber = `#WI-${Date.now().toString().slice(-6)}`;
+    const total = walkInItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+    try {
+      setSavingWalkInOrder(true);
+      setDbError('');
+      await addOrder({
+        orderNumber,
+        customer: walkInForm.customer.trim() || 'Walk-in Customer',
+        service: 'Walk In',
+        items: walkInItems.map((item) => `${item.name} x ${item.quantity}`),
+        total,
+        status: 'Received',
+        paymentMethod: 'cash'
+      });
+      setWalkInItems([]);
+      setWalkInForm({
+        customer: '',
+        selectedItemId: firstWalkInMenuItemId,
+        quantity: '1'
+      });
+      setWalkInSuccess(`${orderNumber} added to the walk-in queue.`);
+    } catch (error) {
+      setDbError('Unable to save this walk-in order right now.');
+    } finally {
+      setSavingWalkInOrder(false);
     }
   };
 
@@ -934,7 +1077,7 @@ const Admin = () => {
       {
         label: 'Active Orders',
         value: activeDeliveryCount,
-        detail: 'Delivery and walk-in queue'
+        detail: 'Delivery queue'
       },
       {
         label: 'Pending Reservations',
@@ -1055,22 +1198,150 @@ const Admin = () => {
     );
   };
 
+  const renderWalkInPanel = () => {
+    const walkInTotal = walkInItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+    return (
+      <section className="admin-panel admin-tab-panel admin-walk-in-panel">
+        <div className="admin-panel-header admin-walk-in-header">
+          <div>
+            <h2>Walk-In Counter</h2>
+            <p>Receive counter orders, review the current ticket, and monitor the queue.</p>
+          </div>
+        </div>
+
+        <div className="admin-walk-in-layout">
+          <form className="admin-walk-in-builder admin-walk-in-surface" onSubmit={handleRecordWalkInOrder}>
+            <div className="admin-add-preview-header">
+              <span>Cashier Input</span>
+              <strong>Receive a walk-in order</strong>
+            </div>
+
+            <label className="form-field">
+              <span>Customer name</span>
+              <input
+                type="text"
+                name="customer"
+                placeholder="Walk-in Customer"
+                value={walkInForm.customer}
+                onChange={handleWalkInInputChange}
+                className="form-input"
+              />
+            </label>
+
+            <div className="form-row-2">
+              <label className="form-field">
+                <span>Menu item</span>
+                <select
+                  name="selectedItemId"
+                  value={walkInForm.selectedItemId}
+                  onChange={handleWalkInInputChange}
+                  className="form-input"
+                >
+                  {walkInMenuItems.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.name} - {formatCurrency(item.price)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="form-field">
+                <span>Quantity</span>
+                <input
+                  type="number"
+                  name="quantity"
+                  min="1"
+                  value={walkInForm.quantity}
+                  onChange={handleWalkInInputChange}
+                  className="form-input"
+                />
+              </label>
+            </div>
+
+            <div className="admin-walk-in-actions">
+              <button
+                type="button"
+                className="btn btn-secondary btn-full"
+                onClick={handleAddWalkInItem}
+              >
+                Add Item
+              </button>
+
+              <button type="submit" className="btn btn-primary btn-full" disabled={savingWalkInOrder}>
+                {savingWalkInOrder ? 'Saving...' : 'Receive Walk-In Order'}
+              </button>
+            </div>
+          </form>
+
+          <aside className="admin-walk-in-ticket admin-walk-in-surface">
+            <div className="admin-walk-in-section-head">
+              <div className="admin-add-preview-header">
+                <span>Order Preview</span>
+                <strong>Current counter order</strong>
+              </div>
+              <div className="admin-walk-in-inline-meta">
+                <span>{walkInItems.length} item{walkInItems.length === 1 ? '' : 's'}</span>
+              </div>
+            </div>
+
+            {walkInItems.length === 0 ? (
+              <div className="admin-empty-state admin-walk-in-empty-state">
+                Add menu items here before sending the order to the queue.
+              </div>
+            ) : (
+              <div className="admin-walk-in-ticket-card">
+                <div className="admin-walk-in-ticket-list">
+                  {walkInItems.map((item) => (
+                    <article key={item.id} className="admin-walk-in-ticket-item">
+                      <div>
+                        <strong>{item.name}</strong>
+                        <span>{item.quantity} x {formatCurrency(item.price)}</span>
+                      </div>
+                      <div className="admin-walk-in-ticket-item-actions">
+                        <strong>{formatCurrency(item.price * item.quantity)}</strong>
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-small"
+                          onClick={() => handleRemoveWalkInItem(item.id)}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+
+                <div className="admin-order-total admin-walk-in-total">
+                  <span>Total</span>
+                  <strong>{formatCurrency(walkInTotal)}</strong>
+                </div>
+              </div>
+            )}
+
+            {walkInSuccess && <div className="admin-walk-in-success">{walkInSuccess}</div>}
+          </aside>
+        </div>
+      </section>
+    );
+  };
+
   const renderAddItemPanel = () => (
-    <section className="admin-panel admin-tab-panel">
-      <form className="admin-add-form" onSubmit={handleAddItem}>
-        <label className="form-field">
-          <span>Item or food name</span>
-          <input
-            type="text"
-            name="name"
-            placeholder="Example: Iced Latte"
-            value={itemForm.name}
-            onChange={handleItemInputChange}
-            className="form-input"
-            required
-          />
-        </label>
-        <div className="form-row-2">
+    <section className="admin-panel admin-tab-panel admin-add-panel">
+      <div className="admin-add-layout">
+        <form className="admin-add-form" onSubmit={handleAddItem}>
+          <label className="form-field">
+            <span>Item or food name</span>
+            <input
+              type="text"
+              name="name"
+              placeholder="Example: Iced Latte"
+              value={itemForm.name}
+              onChange={handleItemInputChange}
+              className="form-input"
+              required
+            />
+          </label>
           <label className="form-field">
             <span>Price</span>
             <input
@@ -1085,52 +1356,75 @@ const Admin = () => {
             />
           </label>
           <label className="form-field">
-            <span>Available stock</span>
-            <input
-              type="number"
-              name="stock"
-              placeholder="0"
-              min="0"
-              value={itemForm.stock}
+            <span>Menu category</span>
+            <select
+              name="category"
+              value={itemForm.category}
               onChange={handleItemInputChange}
               className="form-input"
+            >
+              {menuCategories
+                .filter((category) => category.id !== 'all')
+                .map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+            </select>
+          </label>
+          <label className="form-field">
+            <span>Description</span>
+            <textarea
+              name="description"
+              placeholder="Short description customers will see on the menu"
+              value={itemForm.description}
+              onChange={handleItemInputChange}
+              className="form-input reservation-notes"
+              rows="4"
               required
             />
           </label>
-        </div>
-        <label className="form-field">
-          <span>Menu category</span>
-          <select
-            name="category"
-            value={itemForm.category}
-            onChange={handleItemInputChange}
-            className="form-input"
-          >
-            {menuCategories
-              .filter((category) => category.id !== 'all')
-              .map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))}
-          </select>
-        </label>
-        <label className="form-field">
-          <span>Description</span>
-          <textarea
-            name="description"
-            placeholder="Short description customers will see on the menu"
-            value={itemForm.description}
-            onChange={handleItemInputChange}
-            className="form-input reservation-notes"
-            rows="4"
-            required
-          />
-        </label>
-        <button type="submit" className="btn btn-primary btn-full" disabled={savingItem}>
-          {savingItem ? 'Saving Item...' : 'Add Item to Menu'}
-        </button>
-      </form>
+          <button type="submit" className="btn btn-primary btn-full" disabled={savingItem}>
+            {savingItem ? 'Saving Item...' : 'Add Item to Menu'}
+          </button>
+        </form>
+
+        <aside className="admin-add-preview">
+          <div className="admin-add-preview-header">
+            <span>Menu Preview</span>
+          </div>
+
+          <article className="admin-menu-preview-card">
+            <div className="admin-menu-preview-media">
+              <div className="admin-menu-preview-icon" aria-hidden="true">
+                <CategoryIcon type={itemForm.category} />
+              </div>
+              <span>{itemForm.image}</span>
+            </div>
+
+            <div className="admin-menu-preview-body">
+              <div className="admin-menu-preview-copy">
+                <h3>{itemForm.name || 'New menu item'}</h3>
+                <p>
+                  {itemForm.description || 'Short description customers will see when this item is added to the menu.'}
+                </p>
+              </div>
+
+              <div className="admin-menu-preview-footer">
+                <strong>
+                  P{Number(itemForm.price || 0).toLocaleString('en-PH', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                  })}
+                </strong>
+                <span>
+                  {(menuCategories.find((category) => category.id === itemForm.category)?.name) || 'Menu Category'}
+                </span>
+              </div>
+            </div>
+          </article>
+        </aside>
+      </div>
     </section>
   );
 
@@ -1149,6 +1443,7 @@ const Admin = () => {
           <div className="admin-tab-content">
             {activeTab === 'dashboard' && renderDashboardPanel()}
             {activeTab === 'delivery-orders' && renderOrdersPanel('delivery')}
+            {activeTab === 'walk-in' && renderWalkInPanel()}
             {activeTab === 'reservations' && renderOrdersPanel('reservation')}
             {activeTab === 'add-item' && renderAddItemPanel()}
           </div>

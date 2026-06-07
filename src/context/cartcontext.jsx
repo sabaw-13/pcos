@@ -3,7 +3,6 @@ import React, { createContext, useEffect, useState } from 'react';
 export const CartContext = createContext();
 
 const CART_STORAGE_KEY = 'persimmonay-cart';
-const ORDER_MODE_STORAGE_KEY = 'persimmonay-order-mode-v2';
 
 const getStoredCart = () => {
   try {
@@ -21,29 +20,12 @@ const getStoredCart = () => {
   }
 };
 
-const getStoredOrderMode = () => {
-  try {
-    const storedOrderMode = window.localStorage.getItem(ORDER_MODE_STORAGE_KEY);
-    if (storedOrderMode === 'walk-in' || storedOrderMode === 'delivery') {
-      return storedOrderMode;
-    }
-    return '';
-  } catch (error) {
-    return '';
-  }
-};
-
 export const CartProvider = ({ children }) => {
   const [cart, setCart] = useState(getStoredCart);
-  const [orderMode, setOrderMode] = useState(getStoredOrderMode);
 
   useEffect(() => {
     window.localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cart));
   }, [cart]);
-
-  useEffect(() => {
-    window.localStorage.setItem(ORDER_MODE_STORAGE_KEY, orderMode);
-  }, [orderMode]);
 
   const addToCart = (item, quantity = 1) => {
     const quantityToAdd = Math.max(1, Number(quantity) || 1);
@@ -85,8 +67,6 @@ export const CartProvider = ({ children }) => {
     <CartContext.Provider
       value={{
         cart,
-        orderMode,
-        setOrderMode,
         addToCart,
         removeFromCart,
         updateQuantity,
