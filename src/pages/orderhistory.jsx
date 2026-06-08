@@ -8,7 +8,7 @@ import {
 } from '../services/database';
 import {
   getDistanceInKm,
-  getReservationArrivalStatus,
+  isFinishedReservation,
   isReservationOrder,
   restaurantLocation
 } from '../utils/reservationarrival';
@@ -142,6 +142,7 @@ const OrderHistory = ({ view = 'orders' }) => {
       case 'Completed':
       case 'Customer Received':
         return 'status-completed';
+      case 'Arrived':
       case 'Received':
         return 'status-completed';
       case 'Waiting':
@@ -158,9 +159,9 @@ const OrderHistory = ({ view = 'orders' }) => {
   };
 
   const isFinishedRecord = (order) =>
-    order.status === 'Completed' ||
-    order.status === 'Cancelled' ||
-    getReservationArrivalStatus(order) === 'Cancelled';
+    isReservationOrder(order)
+      ? isFinishedReservation(order)
+      : order.status === 'Completed' || order.status === 'Cancelled';
 
   const matchesHistoryFilter = (order) => {
     if (historyFilter === 'delivery') {
@@ -422,10 +423,12 @@ const OrderHistory = ({ view = 'orders' }) => {
                     </ul>
                   </div>
 
-                  <div className="order-total">
-                    <span>Total:</span>
-                    <span className="total-amount">P{Number(order.total || 0).toFixed(2)}</span>
-                  </div>
+                  {!isReservationOrder(order) && (
+                    <div className="order-total">
+                      <span>Total:</span>
+                      <span className="total-amount">P{Number(order.total || 0).toFixed(2)}</span>
+                    </div>
+                  )}
                 </div>
 
                 {!isReservationOrder(order) && !isHistoryView && (

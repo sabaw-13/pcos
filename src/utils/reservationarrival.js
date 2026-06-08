@@ -23,6 +23,13 @@ export const isReservationOrder = (order) =>
 export const getReservationArrivalStatus = (order) =>
   order?.reservationArrivalStatus || defaultReservationArrivalStatus;
 
+export const isFinalReservationStatus = (status) =>
+  ['Arrived', 'Completed', 'Cancelled'].includes(status);
+
+export const isFinishedReservation = (order) =>
+  isReservationOrder(order) &&
+  (isFinalReservationStatus(order?.status) || getReservationArrivalStatus(order) === 'Cancelled');
+
 export const getReservationDateTime = (order) => {
   if (!order?.reservation?.date || !order?.reservation?.time) {
     return null;
@@ -46,17 +53,15 @@ export const isReservationExpired = (order, now = Date.now()) => {
 };
 
 export const isActiveReservation = (order) => {
-  const arrivalStatus = getReservationArrivalStatus(order);
-
   return (
     isReservationOrder(order) &&
-    !['Completed', 'Cancelled'].includes(order?.status) &&
-    arrivalStatus !== 'Cancelled' &&
+    !isFinishedReservation(order) &&
     !isReservationExpired(order)
   );
 };
 
 export const getReservationAvailabilityText = (order) => {
+  if (order?.status === 'Arrived') return 'Reservation arrived';
   if (order?.status === 'Completed') return 'Reservation completed';
   if (order?.status === 'Cancelled' || getReservationArrivalStatus(order) === 'Cancelled') {
     return 'Reservation cancelled';

@@ -1,6 +1,9 @@
 import { onValue, push, ref, remove, serverTimestamp, set, update } from 'firebase/database';
 import { database } from './firebase';
 
+const shouldResetReservationTracking = (status) =>
+  ['Arrived', 'Completed', 'Cancelled'].includes(status);
+
 const toList = (snapshot) => {
   const value = snapshot.val() || {};
 
@@ -44,7 +47,7 @@ export const addOrder = (order) => {
 export const updateOrderStatus = (orderId, status) =>
   update(ref(database, `orders/${orderId}`), {
     status,
-    ...(status === 'Completed' || status === 'Cancelled'
+    ...(shouldResetReservationTracking(status)
       ? {
           locationSharingEnabled: false,
           locationConsent: false,

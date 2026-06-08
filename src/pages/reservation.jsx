@@ -91,6 +91,19 @@ const Reservation = () => {
     };
   }, []);
 
+  useEffect(() => {
+    if (activeReservation?.status === 'Waiting') {
+      return;
+    }
+
+    if (liveLocationWatchId.current) {
+      navigator.geolocation?.clearWatch(liveLocationWatchId.current);
+      liveLocationWatchId.current = null;
+    }
+
+    setLiveSharing(false);
+  }, [activeReservation]);
+
   const handleInputChange = (event) => {
     const { name, value } = event.target;
     setFormData((current) => ({
