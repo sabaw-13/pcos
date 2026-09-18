@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/authcontext';
 import { useConfirm } from '../context/confirmcontext';
+import { getReservationFoodStatus } from '../utils/orderqueue';
 import {
   subscribeOrders,
   updateOrderStatus
@@ -416,6 +417,7 @@ const OrderHistory = ({ view = 'orders' }) => {
                 <div className="order-card-body">
                   <div className="order-items">
                     <h4>{isReservationOrder(order) ? 'Reservation:' : 'Items:'}</h4>
+                    {getReservationFoodStatus(order) && <p>Food order: {getReservationFoodStatus(order)}</p>}
                     <ul className="items-list">
                       {(order.items || []).map((item, idx) => (
                         <li key={idx}>{item}</li>
@@ -423,7 +425,7 @@ const OrderHistory = ({ view = 'orders' }) => {
                     </ul>
                   </div>
 
-                  {!isReservationOrder(order) && (
+                  {(!isReservationOrder(order) || order.reservation?.orderingMode === 'preorder') && (
                     <div className="order-total">
                       <span>Total:</span>
                       <span className="total-amount">P{Number(order.total || 0).toFixed(2)}</span>

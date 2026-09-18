@@ -57,6 +57,12 @@ export const updateOrderStatus = (orderId, status) =>
     updatedAt: serverTimestamp()
   });
 
+export const updateReservationFoodStatus = (orderId, preorderStatus) =>
+  update(ref(database, `orders/${orderId}`), {
+    preorderStatus,
+    updatedAt: serverTimestamp()
+  });
+
 export const updateReservationArrivalStatus = (orderId, reservationArrivalStatus) =>
   update(ref(database, `orders/${orderId}`), {
     reservationArrivalStatus,

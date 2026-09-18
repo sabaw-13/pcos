@@ -12,12 +12,15 @@ import {
   subscribeMenuItems,
   subscribeOrders,
   updateOrderStatus,
+  updateReservationFoodStatus,
   updateReservationArrivalStatus
 } from '../services/database';
 import {
   getReservationArrivalStatus,
   isReservationOrder
 } from '../utils/reservationarrival';
+import { getQueueStatus, getReservationFoodStatus } from '../utils/orderqueue';
+import { getDashboardRange, getDashboardBuckets, localDateValue } from '../utils/dashboardfilters';
 
 const emptyItemForm = {
   name: '',
@@ -124,8 +127,7 @@ const getOrderDate = (order) => {
 };
 
 const isSalesOrder = (order) =>
-  !isReservationOrder(order) &&
-  salesStatuses.includes(order.status) &&
+  salesStatuses.includes(getQueueStatus(order)) &&
   Number(order.total || 0) > 0;
 
 const isDateInRange = (date, startDate, endDate) =>
@@ -139,48 +141,6 @@ const getRangeSales = (orders, startDate, endDate) =>
       ? total + Number(order.total || 0)
       : total;
   }, 0);
-
-const getDashboardDateRanges = () => {
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-
-  const weekStart = new Date(today);
-  weekStart.setDate(weekStart.getDate() - 6);
-
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-
-  const yearStart = new Date(now.getFullYear(), 0, 1);
-  const nextYearStart = new Date(now.getFullYear() + 1, 0, 1);
-
-  return {
-    weekStart,
-    tomorrow,
-    monthStart,
-    nextMonthStart,
-    yearStart,
-    nextYearStart
-  };
-};
-
-const getDailySalesSeries = (orders) => {
-  const now = new Date();
-
-  return Array.from({ length: 7 }, (_, index) => {
-    const date = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    date.setDate(date.getDate() - (6 - index));
-
-    const nextDate = new Date(date);
-    nextDate.setDate(nextDate.getDate() + 1);
-
-    return {
-      label: date.toLocaleDateString('en-PH', { weekday: 'short' }),
-      sales: getRangeSales(orders, date, nextDate)
-    };
-  });
-};
 
 const parseOrderItem = (item) => {
   const match = String(item || '').match(/^(.*?)\s+x\s*(\d+)$/i);
@@ -200,7 +160,10 @@ const parseOrderItem = (item) => {
 
 const getTopSellingItems = (orders) => {
   const itemTotals = orders.reduce((totals, order) => {
-    (order.items || []).forEach((item) => {
+    const items = isReservationOrder(order)
+      ? (order.preorderItems || []).map((item) => `${item.name} x ${item.quantity}`)
+      : order.items || [];
+    items.forEach((item) => {
       const parsedItem = parseOrderItem(item);
       totals[parsedItem.name] = (totals[parsedItem.name] || 0) + parsedItem.quantity;
     });
@@ -215,6 +178,14 @@ const getTopSellingItems = (orders) => {
 };
 
 const isWalkInOrder = (order) => order?.service === 'Walk In';
+
+const defaultDashboardDates = () => {
+  const today = new Date();
+  return {
+    date: localDateValue(new Date(today.getFullYear(), today.getMonth(), 1)),
+    endDate: localDateValue(today)
+  };
+};
 
 const Admin = () => {
   const { authLoading, currentUser, isAdmin } = useAuth();
@@ -235,6 +206,7 @@ const Admin = () => {
   const [activeOrderTab, setActiveOrderTab] = useState('receiving');
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [selectedMapOrder, setSelectedMapOrder] = useState(null);
+  const [dashboardFilters, setDashboardFilters] = useState(defaultDashboardDates);
   const menuItems = [...baseMenuItems, ...customMenuItems];
   const walkInMenuItems = [...menuItems].sort((a, b) =>
     String(a.name || '').localeCompare(String(b.name || ''), 'en', { sensitivity: 'base' })
@@ -254,7 +226,7 @@ const Admin = () => {
     }
   }, [firstWalkInMenuItemId, walkInForm.selectedItemId]);
 
-  const deliveryOrders = orders.filter((order) => !isReservationOrder(order) && !isWalkInOrder(order));
+  const queueOrders = orders.filter((order) => !isReservationOrder(order) || getReservationFoodStatus(order));
   const reservationOrders = orders.filter((order) => isReservationOrder(order));
 
   const matchesOrderWorkflowTab = (order, tab, orderType) => {
@@ -262,7 +234,7 @@ const Admin = () => {
       return isReservationOrder(order);
     }
 
-    return !isReservationOrder(order) && tab.statuses.includes(order.status);
+    return tab.statuses.includes(getQueueStatus(order));
   };
 
   const getOrderWorkflowCount = (tab, orderType) =>
@@ -338,7 +310,7 @@ const Admin = () => {
     const confirmed = await confirm({
       title: isReservation ? 'Accept this reservation?' : 'Receive this order?',
       description: isReservation
-        ? `${order.orderNumber || 'This reservation'} will move to waiting.`
+        ? `${order.orderNumber || 'This reservation'} will move to waiting.${order.reservation?.orderingMode === 'preorder' ? ' Its food pre-order will enter the In Progress order queue.' : ''}`
         : isWalkIn
           ? `${order.orderNumber || 'This request'} will move to the cashier preparation queue.`
           : `${order.orderNumber || 'This request'} will move directly to delivery.`,
@@ -454,6 +426,7 @@ const Admin = () => {
     if (paymentMethod === 'cod') return 'Cash on Delivery';
     if (paymentMethod === 'gcash') return 'GCash';
     if (paymentMethod === 'pay-at-counter') return 'Pay at Counter';
+    if (paymentMethod === 'at-cafe') return 'Pay at the cafe';
     return paymentMethod || 'Not specified';
   };
 
@@ -475,9 +448,32 @@ const Admin = () => {
     await handleUpdateOrderStatus(order.firebaseId, 'Completed');
   };
 
-  const renderOrderAction = (order) => {
+  const handleUpdateFoodStatus = async (order, status) => {
+    try {
+      setUpdatingOrderId(order.firebaseId);
+      setDbError('');
+      await updateReservationFoodStatus(order.firebaseId, status);
+    } catch (error) {
+      setDbError('Unable to update the reservation food order in Firebase.');
+    } finally {
+      setUpdatingOrderId('');
+    }
+  };
+
+  const renderOrderAction = (order, foodQueue = false) => {
     const isUpdating = updatingOrderId === order.firebaseId;
     const isWalkIn = isWalkInOrder(order);
+
+    if (foodQueue && isReservationOrder(order)) {
+      const foodStatus = getReservationFoodStatus(order);
+      if (!foodStatus || foodStatus === 'Completed') return null;
+      return (
+        <button type="button" className="btn btn-primary btn-small" disabled={isUpdating}
+          onClick={() => handleUpdateFoodStatus(order, foodStatus === 'Received' ? 'Preparing' : 'Completed')}>
+          {isUpdating ? 'Updating...' : foodStatus === 'Received' ? 'Start Preparing' : 'Mark Completed'}
+        </button>
+      );
+    }
 
     if (isReservationOrder(order)) {
       const reservationAdminStatus = getReservationAdminStatus(order);
@@ -695,6 +691,13 @@ const Admin = () => {
                   <span>Reservation notes</span>
                   <strong>{selectedOrder.reservation?.notes || 'No special request'}</strong>
                 </div>
+                <div className="admin-order-detail-wide">
+                  <span>Food order</span>
+                  <strong>{selectedOrder.reservation?.orderingMode === 'preorder' ? 'Pre-order from the menu' : 'Order at the cafe'}</strong>
+                </div>
+                {getReservationFoodStatus(selectedOrder) && (
+                  <div><span>Food status</span><strong>{getReservationFoodStatus(selectedOrder)}</strong></div>
+                )}
               </> 
             ) : (
               <div className="admin-order-detail-wide">
@@ -708,7 +711,7 @@ const Admin = () => {
             )}
           </div>
 
-          {!isReservationOrder(selectedOrder) && (
+          {(!isReservationOrder(selectedOrder) || selectedOrder.reservation?.orderingMode === 'preorder') && (
             <div className="admin-order-items-panel">
               <h3>Order Items</h3>
               <ul>
@@ -971,7 +974,7 @@ const Admin = () => {
     const workflowTabs = orderWorkflowTabs;
     const currentWorkflowTab =
       workflowTabs.find((tab) => tab.id === activeOrderTab) || workflowTabs[0];
-    const allOrdersForType = orderType === 'reservation' ? reservationOrders : deliveryOrders;
+    const allOrdersForType = orderType === 'reservation' ? reservationOrders : queueOrders;
     const filteredOrders = orderType === 'reservation'
       ? allOrdersForType
       : orders.filter((order) => matchesOrderWorkflowTab(order, currentWorkflowTab, orderType));
@@ -1030,10 +1033,10 @@ const Admin = () => {
                   onClick={(event) => event.stopPropagation()}
                   onKeyDown={(event) => event.stopPropagation()}
                 >
-                  <span className={`staff-status ${getStatusClass(getAdminStatusLabel(order))}`}>
-                    {getAdminStatusLabel(order)}
+                  <span className={`staff-status ${getStatusClass(orderType === 'reservation' ? getAdminStatusLabel(order) : getQueueStatus(order))}`}>
+                    {orderType === 'reservation' ? getAdminStatusLabel(order) : getQueueStatus(order)}
                   </span>
-                  {renderOrderAction(order)}
+                  {renderOrderAction(order, orderType !== 'reservation')}
                 </div>
               </article>
             ))
@@ -1044,50 +1047,48 @@ const Admin = () => {
   };
 
   const renderDashboardPanel = () => {
-    const salesOrders = orders.filter(isSalesOrder);
-    const ranges = getDashboardDateRanges();
-    const weeklySales = getRangeSales(salesOrders, ranges.weekStart, ranges.tomorrow);
-    const monthlySales = getRangeSales(salesOrders, ranges.monthStart, ranges.nextMonthStart);
-    const yearlySales = getRangeSales(salesOrders, ranges.yearStart, ranges.nextYearStart);
-    const dailySalesSeries = getDailySalesSeries(salesOrders);
+    const range = getDashboardRange({ ...dashboardFilters, period: 'custom' });
+    const filteredOrders = range ? orders.filter((order) =>
+      isDateInRange(getOrderDate(order), range.start, range.end)
+    ) : [];
+    const salesOrders = filteredOrders.filter(isSalesOrder);
+    const totalSales = salesOrders.reduce((sum, order) => sum + Number(order.total || 0), 0);
+    const dailySalesSeries = range ? getDashboardBuckets(range).map((bucket) => ({
+      label: bucket.label, sales: getRangeSales(salesOrders, bucket.start, bucket.end)
+    })) : [];
     const topSellingItems = getTopSellingItems(salesOrders);
     const maxDailySales = Math.max(...dailySalesSeries.map((item) => item.sales), 1);
-    const activeDeliveryCount = deliveryOrders.filter(
-      (order) => !['Completed', 'Cancelled'].includes(order.status)
+    const activeDeliveryCount = filteredOrders.filter(
+      (order) => !['Completed', 'Cancelled', 'Arrived'].includes(getQueueStatus(order) || order.status)
     ).length;
-    const pendingReservationCount = reservationOrders.filter((order) => order.status === 'Pending').length;
-    const completedOrderCount = deliveryOrders.filter((order) => order.status === 'Completed').length;
-    const recentSalesOrders = salesOrders.slice(0, 5);
+    const pendingReservationCount = filteredOrders.filter((order) => isReservationOrder(order) && order.status === 'Pending').length;
+    const completedOrderCount = filteredOrders.filter((order) => getQueueStatus(order) === 'Completed').length;
+    const recentSalesOrders = [...salesOrders].sort((a, b) => getOrderDate(b) - getOrderDate(a)).slice(0, 5);
+    const setFilter = (name, value) => setDashboardFilters((current) => ({ ...current, [name]: value }));
     const dashboardStats = [
       {
-        label: 'Weekly Sales',
-        value: formatCurrency(weeklySales),
-        detail: 'Last 7 days'
+        label: 'Sales',
+        value: formatCurrency(totalSales)
       },
       {
-        label: 'Monthly Sales',
-        value: formatCurrency(monthlySales),
-        detail: new Date().toLocaleDateString('en-PH', { month: 'long', year: 'numeric' })
+        label: 'Total Orders',
+        value: filteredOrders.length
       },
       {
-        label: 'Yearly Sales',
-        value: formatCurrency(yearlySales),
-        detail: `${new Date().getFullYear()} sales`
+        label: 'Average Sale',
+        value: formatCurrency(salesOrders.length ? totalSales / salesOrders.length : 0)
       },
       {
         label: 'Active Orders',
-        value: activeDeliveryCount,
-        detail: 'Delivery queue'
+        value: activeDeliveryCount
       },
       {
         label: 'Pending Reservations',
-        value: pendingReservationCount,
-        detail: 'Needs admin review'
+        value: pendingReservationCount
       },
       {
         label: 'Completed Orders',
-        value: completedOrderCount,
-        detail: 'Delivery history'
+        value: completedOrderCount
       }
     ];
 
@@ -1102,14 +1103,18 @@ const Admin = () => {
               year: 'numeric'
             })}
           </span>
+          <div className="admin-dashboard-filters">
+          <label>Start date<input className="form-input" type="date" value={dashboardFilters.date} onChange={(event) => setFilter('date', event.target.value)} /></label>
+          <label>End date<input className="form-input" type="date" min={dashboardFilters.date} value={dashboardFilters.endDate} onChange={(event) => setFilter('endDate', event.target.value)} /></label>
+          </div>
         </div>
+        {!range && <p className="checkout-error" role="alert">Choose valid dates with the end date on or after the start date.</p>}
 
         <div className="admin-dashboard-stats">
           {dashboardStats.map((stat) => (
             <article key={stat.label} className="admin-dashboard-stat">
               <span>{stat.label}</span>
               <strong>{stat.value}</strong>
-              <p>{stat.detail}</p>
             </article>
           ))}
         </div>
@@ -1118,12 +1123,12 @@ const Admin = () => {
           <section className="admin-dashboard-card admin-sales-card">
             <div className="admin-dashboard-card-header">
               <div>
-                <h3>Weekly Sales Trend</h3>
+                <h3>Sales Trend</h3>
                 <p>Completed customer orders and fulfilled deliveries</p>
               </div>
-              <strong>{formatCurrency(weeklySales)}</strong>
+              <strong>{formatCurrency(totalSales)}</strong>
             </div>
-            <div className="admin-sales-chart" aria-label="Weekly sales chart">
+            <div className="admin-sales-chart admin-filtered-sales-chart" aria-label="Sales chart for selected period" style={{ gridTemplateColumns: `repeat(${Math.max(1, dailySalesSeries.length)}, minmax(64px, 1fr))` }}>
               {dailySalesSeries.map((item) => (
                 <div key={item.label} className="admin-sales-bar-item">
                   <div className="admin-sales-bar-track">
@@ -1335,7 +1340,7 @@ const Admin = () => {
             <input
               type="text"
               name="name"
-              placeholder="Example: Iced Latte"
+              placeholder="Food name"
               value={itemForm.name}
               onChange={handleItemInputChange}
               className="form-input"
@@ -1376,7 +1381,7 @@ const Admin = () => {
             <span>Description</span>
             <textarea
               name="description"
-              placeholder="Short description customers will see on the menu"
+              placeholder="Short menu description"
               value={itemForm.description}
               onChange={handleItemInputChange}
               className="form-input reservation-notes"
@@ -1406,7 +1411,7 @@ const Admin = () => {
               <div className="admin-menu-preview-copy">
                 <h3>{itemForm.name || 'New menu item'}</h3>
                 <p>
-                  {itemForm.description || 'Short description customers will see when this item is added to the menu.'}
+                  {itemForm.description || 'Short menu description'}
                 </p>
               </div>
 

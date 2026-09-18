@@ -2,7 +2,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/authcontext';
 import { useConfirm } from '../context/confirmcontext';
-import { addOrder, subscribeOrders, updateReservationLocation } from '../services/database';
+import { addOrder, subscribeMenuItems, subscribeOrders, updateReservationLocation } from '../services/database';
+import { baseMenuItems, menuCategories } from '../data/menudata';
+import ReservationMenuItem from '../components/reservationmenuitem';
 import {
   defaultReservationArrivalStatus,
   formatReservationLocationTime,
@@ -34,8 +36,8 @@ const Reservation = () => {
   const { currentUser, isAdmin } = useAuth();
   const { confirm } = useConfirm();
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
+    name: currentUser?.displayName || '',
+    email: currentUser?.email || '',
     phone: '',
     date: '',
     time: '',
@@ -52,7 +54,42 @@ const Reservation = () => {
   const [liveSharing, setLiveSharing] = useState(false);
   const [activeReservation, setActiveReservation] = useState(null);
   const [checkingReservation, setCheckingReservation] = useState(true);
+  const [orderingMode, setOrderingMode] = useState('at-cafe');
+  const [customMenuItems, setCustomMenuItems] = useState([]);
+  const [menuError, setMenuError] = useState('');
+  const [quantities, setQuantities] = useState({});
+  const [category, setCategory] = useState('all');
+  const [search, setSearch] = useState('');
+  const [savedPreorder, setSavedPreorder] = useState(null);
   const liveLocationWatchId = useRef(null);
+  const menuItems = [...baseMenuItems, ...customMenuItems];
+  const selectedItems = orderingMode === 'preorder'
+    ? menuItems.filter((item) => quantities[item.id] > 0).map((item) => ({
+        id: item.id, name: item.name, price: Number(item.price), quantity: quantities[item.id]
+      }))
+    : [];
+  const preorderTotal = selectedItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const filteredMenu = menuItems.filter((item) =>
+    (category === 'all' || item.category === category) &&
+    item.name.toLowerCase().includes(search.toLowerCase())
+  );
+
+  useEffect(() => {
+    if (!currentUser || isAdmin) return;
+    setFormData((current) => ({
+      ...current,
+      name: current.name || currentUser.displayName || '',
+      email: current.email || currentUser.email || ''
+    }));
+  }, [currentUser, isAdmin]);
+
+  useEffect(() => {
+    if (!currentUser || isAdmin || orderingMode !== 'preorder') return undefined;
+    return subscribeMenuItems(
+      (items) => { setCustomMenuItems(items); setMenuError(''); },
+      () => setMenuError('Staff-added menu items are unavailable right now.')
+    );
+  }, [currentUser, isAdmin, orderingMode]);
 
   useEffect(() => {
     if (!currentUser || isAdmin) {
@@ -114,6 +151,7 @@ const Reservation = () => {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    if (savingReservation) return;
     if (!currentUser || isAdmin) {
       setReservationError('Please log in with a customer account before submitting a reservation.');
       return;
@@ -124,6 +162,21 @@ const Reservation = () => {
       return;
     }
 
+    if (orderingMode === 'preorder' && selectedItems.length === 0) {
+      setReservationError('Choose at least one menu item or select Order at the cafe.');
+      return;
+    }
+
+    if (selectedItems.some((item) => {
+      const menuItem = menuItems.find((entry) => entry.id === item.id);
+      return !Number.isInteger(item.quantity) || item.quantity < 1 ||
+        item.quantity > Number(menuItem.stock ?? 20) || !Number.isFinite(item.price) || item.price < 0;
+    })) {
+      setReservationError('Please check the quantities and availability of your selected items.');
+      return;
+    }
+
+    const preorder = { orderingMode, items: selectedItems, total: preorderTotal };
     const orderNumber = `#RS-${Date.now().toString().slice(-6)}`;
 
     try {
@@ -132,8 +185,14 @@ const Reservation = () => {
         orderNumber,
         customer: formData.name,
         service: 'Online Reservation',
-        items: [`Table for ${formData.guests}`, `${formData.date} ${formData.time}`],
-        total: 0,
+        items: [
+          `Table for ${formData.guests}`, `${formData.date} ${formData.time}`,
+          orderingMode === 'preorder' ? 'Pre-order - pay at the cafe' : 'Order at the cafe',
+          ...selectedItems.map((item) => `${item.name} x ${item.quantity} - P${(item.price * item.quantity).toFixed(2)}`)
+        ],
+        total: preorderTotal,
+        preorderItems: selectedItems,
+        paymentMethod: 'at-cafe',
         status: 'Pending',
         reservationArrivalStatus: defaultReservationArrivalStatus,
         locationSharingEnabled: false,
@@ -143,6 +202,7 @@ const Reservation = () => {
           phone: formData.phone
         },
         reservation: {
+          orderingMode,
           date: formData.date,
           time: formData.time,
           guests: Number(formData.guests),
@@ -150,6 +210,7 @@ const Reservation = () => {
         }
       });
       setReservationNumber(orderNumber);
+      setSavedPreorder(preorder);
       setReservationError('');
       setLocationError('');
       setLatestLocation(null);
@@ -261,6 +322,13 @@ const Reservation = () => {
             <span>{formData.date || 'Selected date'}</span>
             <span>{formData.time || 'Selected time'}</span>
           </div>
+          <div className="reservation-food-summary">
+            <strong>{savedPreorder?.orderingMode === 'preorder' ? 'Pre-order - pay at the cafe' : 'Order at the cafe'}</strong>
+            <ul>{savedPreorder?.items.map((item) => (
+              <li key={item.id}>{item.name} x {item.quantity} - P{(item.price * item.quantity).toFixed(2)}</li>
+            ))}</ul>
+            {savedPreorder?.orderingMode === 'preorder' && <p>Food total: P{savedPreorder.total.toFixed(2)}</p>}
+          </div>
           <div className="reservation-arrival-panel reservation-confirmation-tracking">
             <div className="reservation-arrival-header">
               <div>
@@ -313,6 +381,12 @@ const Reservation = () => {
         <div className="reservation-confirmation">
           <span className="reservation-status">Active reservation found</span>
           <h1>Your active reservation</h1>
+          <div className="reservation-food-summary">
+            <ul>{(activeReservation.items || []).map((item, index) => <li key={index}>{item}</li>)}</ul>
+            {activeReservation.reservation?.orderingMode === 'preorder' && (
+              <strong>Food total: P{Number(activeReservation.total || 0).toFixed(2)} - pay at the cafe</strong>
+            )}
+          </div>
           <div className="reservation-arrival-panel reservation-confirmation-tracking">
             <div className="reservation-arrival-header">
               <div>
@@ -466,7 +540,40 @@ const Reservation = () => {
               />
             </label>
           </div>
-          {reservationError && <p className="checkout-error">{reservationError}</p>}
+          <fieldset className="reservation-food-options" disabled={savingReservation}>
+            <legend>Food order</legend>
+            <div className="reservation-ordering-modes">
+              <label><input type="radio" name="orderingMode" value="at-cafe" checked={orderingMode === 'at-cafe'} onChange={() => { setOrderingMode('at-cafe'); setReservationError(''); }} /> Order at the cafe</label>
+              <label><input type="radio" name="orderingMode" value="preorder" checked={orderingMode === 'preorder'} onChange={() => { setOrderingMode('preorder'); setReservationError(''); }} /> Pre-order from the menu</label>
+            </div>
+            {orderingMode === 'preorder' && (
+              <>
+                <div className="reservation-menu-filters">
+                  <input className="form-input" type="search" aria-label="Search reservation menu" placeholder="Search menu" value={search} onChange={(event) => setSearch(event.target.value)} />
+                  <select className="form-input" aria-label="Reservation menu category" value={category} onChange={(event) => setCategory(event.target.value)}>
+                    {menuCategories.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}</option>)}
+                  </select>
+                </div>
+                {menuError && <p className="checkout-error">{menuError}</p>}
+                <div className="reservation-menu-list">
+                  {filteredMenu.map((item) => (
+                    <ReservationMenuItem key={item.id} item={item} selectedQuantity={quantities[item.id] || 0}
+                      onAdd={(amount) => setQuantities((current) => ({ ...current, [item.id]: Math.min(Number(item.stock ?? 20), (current[item.id] || 0) + amount) }))} />
+                  ))}
+                  {filteredMenu.length === 0 && <p>No menu items found.</p>}
+                </div>
+                <div className="reservation-food-summary" aria-live="polite">
+                  <ul>{selectedItems.map((item) => <li key={item.id}>
+                    {item.name} x {item.quantity} - P{(item.price * item.quantity).toFixed(2)}
+                    <button type="button" className="reservation-remove-item" aria-label={`Remove ${item.name}`} title={`Remove ${item.name}`} onClick={() => setQuantities((current) => ({ ...current, [item.id]: 0 }))}>&times;</button>
+                  </li>)}</ul>
+                  <strong>Food total: P{preorderTotal.toFixed(2)}</strong>
+                  <p>Payment at the cafe</p>
+                </div>
+              </>
+            )}
+          </fieldset>
+          {reservationError && <p className="checkout-error" role="alert">{reservationError}</p>}
           <button type="submit" className="btn btn-primary btn-full" disabled={savingReservation}>
             {savingReservation ? 'Saving Reservation...' : 'Submit Reservation'}
           </button>
