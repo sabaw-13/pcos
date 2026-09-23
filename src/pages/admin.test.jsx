@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import Admin from './admin';
 import { useSearchParams } from 'react-router-dom';
-import { subscribeOrders, subscribeMenuItems, updateOrderStatus, updateReservationFoodStatus } from '../services/database';
+import { subscribeOrders, subscribeMenuItems, updateOrderStatus, updateReservationFoodStatus, verifyOrderDeposit } from '../services/database';
 
 jest.mock('react-router-dom', () => {
   return { Navigate: () => null, useSearchParams: jest.fn() };
@@ -13,7 +13,7 @@ jest.mock('../context/confirmcontext', () => ({ useConfirm: () => ({ confirm: as
 jest.mock('../components/reservationroutemap', () => () => null);
 jest.mock('../services/database', () => ({
   subscribeOrders: jest.fn(), subscribeMenuItems: jest.fn(), updateOrderStatus: jest.fn(),
-  updateReservationFoodStatus: jest.fn()
+  updateReservationFoodStatus: jest.fn(), verifyOrderDeposit: jest.fn()
 }));
 
 let order;
@@ -92,4 +92,26 @@ test('accepting a table-only reservation does not create a food order', async ()
   await waitFor(() => expect(updateOrderStatus).toHaveBeenCalled());
   openQueue(rerender);
   expect(screen.queryByText('#RS-123')).not.toBeInTheDocument();
+});
+
+
+test('requires staff verification before accepting a deposit reservation', async () => {
+  order.payment = { method: 'gcash', depositRate: 0.5, depositAmount: 135, remainingBalance: 135, status: 'pending-verification', referenceNumber: '1234567890123' };
+  render(<Admin />);
+  fireEvent.click(screen.getByRole('button', { name: 'Accept' }));
+  expect(updateOrderStatus).not.toHaveBeenCalled();
+  expect(await screen.findByRole('button', { name: 'Verify Deposit' })).toBeInTheDocument();
+  expect(screen.getByText('1234567890123')).toBeInTheDocument();
+});
+
+
+test('staff can verify a received deposit and then accept the reservation', async () => {
+  order.payment = { method: 'gcash', depositRate: 0.5, depositAmount: 135, remainingBalance: 135, status: 'pending-verification', referenceNumber: '1234567890123' };
+  verifyOrderDeposit.mockImplementation(async () => { order = { ...order, payment: { ...order.payment, status: 'verified' } }; publish([order]); });
+  render(<Admin />);
+  fireEvent.click(screen.getByRole('button', { name: 'Accept' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Verify Deposit' }));
+  await screen.findByText('Payment verified');
+  fireEvent.click(screen.getByRole('button', { name: 'Accept Reservation' }));
+  await waitFor(() => expect(updateOrderStatus).toHaveBeenCalledWith('reservation-1', 'Waiting'));
 });

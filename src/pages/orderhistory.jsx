@@ -1,3 +1,4 @@
+import DepositSummary from '../components/depositsummary';
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/authcontext';
@@ -414,7 +415,7 @@ const OrderHistory = ({ view = 'orders' }) => {
                   </div>
                 </div>
 
-                <div className="order-card-body">
+                <div className="order-card-body"><DepositSummary payment={order.payment} />
                   <div className="order-items">
                     <h4>{isReservationOrder(order) ? 'Reservation:' : 'Items:'}</h4>
                     {getReservationFoodStatus(order) && <p>Food order: {getReservationFoodStatus(order)}</p>}

@@ -1,3 +1,5 @@
+import DepositSummary from '../components/depositsummary';
+import { CAFE_GCASH_NUMBER, CAFE_GCASH_QR_IMAGE, createDepositPayment, createReservationFeePayment, RESERVATION_FEE } from '../utils/deposit';
 import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/authcontext';
@@ -44,6 +46,7 @@ const Reservation = () => {
     guests: '2',
     notes: ''
   });
+  const [paymentReference, setPaymentReference] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [reservationNumber, setReservationNumber] = useState('');
   const [reservationError, setReservationError] = useState('');
@@ -176,7 +179,11 @@ const Reservation = () => {
       return;
     }
 
-    const preorder = { orderingMode, items: selectedItems, total: preorderTotal };
+    let payment;
+    try {
+      payment = orderingMode === 'preorder' ? createDepositPayment(preorderTotal, paymentReference) : createReservationFeePayment(paymentReference);
+    } catch (error) { setReservationError(error.message); return; }
+    const preorder = { orderingMode, items: selectedItems, total: preorderTotal, payment };
     const orderNumber = `#RS-${Date.now().toString().slice(-6)}`;
 
     try {
@@ -187,12 +194,13 @@ const Reservation = () => {
         service: 'Online Reservation',
         items: [
           `Table for ${formData.guests}`, `${formData.date} ${formData.time}`,
-          orderingMode === 'preorder' ? 'Pre-order - pay at the cafe' : 'Order at the cafe',
+          orderingMode === 'preorder' ? 'Pre-order - 50% deposit required' : 'Order at the cafe',
           ...selectedItems.map((item) => `${item.name} x ${item.quantity} - P${(item.price * item.quantity).toFixed(2)}`)
         ],
-        total: preorderTotal,
+        total: orderingMode === 'preorder' ? preorderTotal : payment.depositAmount,
         preorderItems: selectedItems,
-        paymentMethod: 'at-cafe',
+        paymentMethod: payment ? 'gcash' : 'at-cafe',
+        ...(payment ? { payment } : {}),
         status: 'Pending',
         reservationArrivalStatus: defaultReservationArrivalStatus,
         locationSharingEnabled: false,
@@ -323,12 +331,13 @@ const Reservation = () => {
             <span>{formData.time || 'Selected time'}</span>
           </div>
           <div className="reservation-food-summary">
-            <strong>{savedPreorder?.orderingMode === 'preorder' ? 'Pre-order - pay at the cafe' : 'Order at the cafe'}</strong>
+            <strong>{savedPreorder?.orderingMode === 'preorder' ? 'Pre-order - 50% deposit required' : 'Order at the cafe'}</strong>
             <ul>{savedPreorder?.items.map((item) => (
               <li key={item.id}>{item.name} x {item.quantity} - P{(item.price * item.quantity).toFixed(2)}</li>
             ))}</ul>
             {savedPreorder?.orderingMode === 'preorder' && <p>Food total: P{savedPreorder.total.toFixed(2)}</p>}
           </div>
+          <DepositSummary payment={savedPreorder?.payment} />
           <div className="reservation-arrival-panel reservation-confirmation-tracking">
             <div className="reservation-arrival-header">
               <div>
@@ -379,12 +388,12 @@ const Reservation = () => {
     return (
       <div className="reservation-page">
         <div className="reservation-confirmation">
-          <span className="reservation-status">Active reservation found</span>
+          <span className="reservation-status">Active reservation found</span><DepositSummary payment={activeReservation.payment} />
           <h1>Your active reservation</h1>
           <div className="reservation-food-summary">
             <ul>{(activeReservation.items || []).map((item, index) => <li key={index}>{item}</li>)}</ul>
             {activeReservation.reservation?.orderingMode === 'preorder' && (
-              <strong>Food total: P{Number(activeReservation.total || 0).toFixed(2)} - pay at the cafe</strong>
+              <strong>Food total: P{Number(activeReservation.total || 0).toFixed(2)}</strong>
             )}
           </div>
           <div className="reservation-arrival-panel reservation-confirmation-tracking">
@@ -568,10 +577,19 @@ const Reservation = () => {
                     <button type="button" className="reservation-remove-item" aria-label={`Remove ${item.name}`} title={`Remove ${item.name}`} onClick={() => setQuantities((current) => ({ ...current, [item.id]: 0 }))}>&times;</button>
                   </li>)}</ul>
                   <strong>Food total: P{preorderTotal.toFixed(2)}</strong>
-                  <p>Payment at the cafe</p>
+                  <p>Pay 50% now: P{(Math.ceil(Math.round(preorderTotal * 100) / 2) / 100).toFixed(2)}</p>
+                  <p>Pay the remaining balance at the cafe. Staff must verify your deposit before accepting the reservation.</p>
+                  <div className="gcash-payment-panel"><div className="gcash-payment-copy"><span className="payment-eyebrow">Send your deposit via GCash to</span><strong>{CAFE_GCASH_NUMBER}</strong></div><img src={CAFE_GCASH_QR_IMAGE} alt="Cafe GCash QR code" className="gcash-qr-image" /></div>
+                  <label className="form-field"><span>GCash reference number</span><input className="form-input" value={paymentReference} onChange={(event) => setPaymentReference(event.target.value)} required /></label>
                 </div>
               </>
             )}
+            {orderingMode === 'at-cafe' && <div className="reservation-food-summary">
+              <strong>Reservation fee: {RESERVATION_FEE > 0 ? 'P' + RESERVATION_FEE.toFixed(2) : 'Not configured yet'}</strong>
+              <p>Pay the reservation fee in full. Staff must verify payment before accepting your table reservation.</p>
+              <div className="gcash-payment-panel"><div className="gcash-payment-copy"><span className="payment-eyebrow">Send payment via GCash to</span><strong>{CAFE_GCASH_NUMBER}</strong></div><img src={CAFE_GCASH_QR_IMAGE} alt="Cafe GCash QR code" className="gcash-qr-image" /></div>
+              <label className="form-field"><span>GCash reference number</span><input className="form-input" value={paymentReference} onChange={(event) => setPaymentReference(event.target.value)} required /></label>
+            </div>}
           </fieldset>
           {reservationError && <p className="checkout-error" role="alert">{reservationError}</p>}
           <button type="submit" className="btn btn-primary btn-full" disabled={savingReservation}>

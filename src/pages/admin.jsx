@@ -1,3 +1,6 @@
+import { requiresPaymentVerification } from '../utils/deposit';
+import DepositSummary from '../components/depositsummary';
+import { verifyOrderDeposit } from '../services/database';
 import React, { useEffect, useState } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/authcontext';
@@ -305,6 +308,11 @@ const Admin = () => {
   }
 
   const handleReceiveOrder = async (order) => {
+    if (requiresPaymentVerification(order) && order.payment.status !== 'verified') {
+      setSelectedOrder(order);
+      setDbError('Verify the deposit in order details before accepting this request.');
+      return;
+    }
     const isReservation = isReservationOrder(order);
     const isWalkIn = isWalkInOrder(order);
     const confirmed = await confirm({
@@ -640,6 +648,20 @@ const Admin = () => {
             <p>{selectedOrder.customer} - {selectedOrder.service || 'Online Delivery'}</p>
           </div>
 
+          <DepositSummary payment={selectedOrder.payment} />
+          {requiresPaymentVerification(selectedOrder) && selectedOrder.payment.status !== 'verified' && (
+            <button type="button" className="btn btn-primary" disabled={updatingOrderId === selectedOrder.firebaseId} onClick={async () => {
+              const agreed = await confirm({ title: 'Verify deposit received?', description: `Check your GCash transactions for reference ${selectedOrder.payment.referenceNumber} and confirm receipt of P${Number(selectedOrder.payment.depositAmount).toFixed(2)} before continuing.`, confirmText: 'Confirm Deposit Received', cancelText: 'Not Yet' });
+              if (!agreed) return;
+              try {
+                setUpdatingOrderId(selectedOrder.firebaseId);
+                await verifyOrderDeposit(selectedOrder.firebaseId);
+                setSelectedOrder((current) => current ? { ...current, payment: { ...current.payment, status: 'verified' } } : current);
+                setDbError('');
+              } catch (error) { setDbError('Unable to verify the deposit. Please try again.'); }
+              finally { setUpdatingOrderId(''); }
+            }}>Verify Deposit</button>
+          )}
           <div className="admin-order-detail-grid">
             <div>
               <span>Customer</span>
@@ -657,7 +679,7 @@ const Admin = () => {
               <span>Payment</span>
               <strong>{getPaymentMethodLabel(getOrderPaymentMethod(selectedOrder))}</strong>
             </div>
-            {!isReservationOrder(selectedOrder) && (
+            {getOrderPaymentMethod(selectedOrder) === 'gcash' && (
               <>
                 {!isWalkInOrder(selectedOrder) && (
                   <>

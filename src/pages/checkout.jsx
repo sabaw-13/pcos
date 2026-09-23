@@ -5,8 +5,7 @@ import { CartContext } from '../context/cartcontext';
 import CheckoutStep from '../components/checkoutstep';
 import { addOrder } from '../services/database';
 
-const CAFE_GCASH_NUMBER = process.env.REACT_APP_CAFE_GCASH_NUMBER || '09XX XXX XXXX';
-const CAFE_GCASH_QR_IMAGE = process.env.REACT_APP_CAFE_GCASH_QR_IMAGE || '/images/gcash-qr.svg';
+import { CAFE_GCASH_NUMBER, CAFE_GCASH_QR_IMAGE, createDepositPayment, getDepositAmounts } from '../utils/deposit';
 
 const Checkout = () => {
   const navigate = useNavigate();
@@ -42,6 +41,7 @@ const Checkout = () => {
   const subtotal = cart.reduce((total, item) => total + item.price * item.quantity, 0);
   const deliveryFee = 30;
   const total = subtotal + deliveryFee;
+  const { depositAmount, remainingBalance } = getDepositAmounts(total);
   const deliveryFields = ['name', 'email', 'phone', 'address'];
   const paymentFields = ['paymentReference'];
 
@@ -98,6 +98,8 @@ const Checkout = () => {
   };
 
   const handlePlaceOrder = async () => {
+    if (savingOrder) return;
+    if (!cart.length) { setOrderError('Add items to your cart before ordering.'); return; }
     if (!currentUser || isAdmin) {
       setOrderError('Please log in with a customer account before placing an order.');
       return;
@@ -129,7 +131,7 @@ const Checkout = () => {
         service: 'Online Delivery',
         items: cart.map((item) => `${item.name} x ${item.quantity}`),
         total,
-        status: 'Waiting',
+        status: 'Pending',
         customerId: currentUser.uid,
         contact: {
           email: formData.email || currentUser.email,
@@ -139,11 +141,7 @@ const Checkout = () => {
           street: formData.address
         },
         paymentMethod: formData.paymentMethod,
-        payment: {
-          method: formData.paymentMethod,
-          gcashNumber: CAFE_GCASH_NUMBER,
-          referenceNumber: formData.paymentReference.trim()
-        }
+        payment: createDepositPayment(total, formData.paymentReference)
       });
       setPlacedOrderNumber(orderNumber);
       setOrderPlaced(true);
@@ -165,9 +163,9 @@ const Checkout = () => {
         <div className="success-screen">
           <div className="success-animation">✓</div>
           <h1>Order Placed Successfully!</h1>
-          <p>Your online delivery order has been sent and will be delivered soon.</p>
+          <p>Your order is awaiting staff verification of your 50% deposit.</p>
           <div className="order-number">{placedOrderNumber}</div>
-          <p className="delivery-time">Estimated delivery: 15-20 minutes</p>
+          <p className="delivery-time">The remaining balance is due on delivery.</p>
         </div>
       </div>
     );
@@ -266,7 +264,7 @@ const Checkout = () => {
                 <div className="gcash-payment-copy">
                   <span className="payment-eyebrow">Send payment to</span>
                   <strong>{CAFE_GCASH_NUMBER}</strong>
-                  <p>Pay the exact total, then enter the GCash reference number below.</p>
+                  <p>Pay the 50% deposit of P{depositAmount.toFixed(2)}, then enter the GCash reference number below. Staff must verify payment before accepting your order.</p>
                 </div>
                 <img src={CAFE_GCASH_QR_IMAGE} alt="Persimmonay Cafe GCash QR code" className="gcash-qr-image" />
               </div>
@@ -322,9 +320,9 @@ const Checkout = () => {
                 </div>
 
                 <div className="review-details">
-                  <h3>Payment Details</h3>
+                  <h3>Payment Details</h3><p>50% deposit: P{depositAmount.toFixed(2)} (awaiting verification)</p><p>Balance due on delivery: P{remainingBalance.toFixed(2)}</p>
                   <p><strong>GCash</strong></p>
-                  <p>Paid to: {CAFE_GCASH_NUMBER}</p>
+                  <p>Payment sent to: {CAFE_GCASH_NUMBER}</p>
                   <p className="contact">Reference: {formData.paymentReference}</p>
                 </div>
               </div>
@@ -361,7 +359,7 @@ const Checkout = () => {
         </div>
 
         <div className="checkout-summary">
-          <h3>Order Summary</h3>
+          <h3>Order Summary</h3><p><strong>Pay 50% now: P{depositAmount.toFixed(2)}</strong></p><p>Balance due on delivery: P{remainingBalance.toFixed(2)}</p>
           <div className="summary-items">
             {cart.map((item) => (
               <div key={item.id} className="summary-item">

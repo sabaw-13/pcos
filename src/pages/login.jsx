@@ -55,7 +55,6 @@ const Login = () => {
       return {
         eyebrow: 'New customer',
         title: 'Create your cafe account',
-        description: 'Save your details once, then order delivery and reserve a table faster next time.',
         submit: 'Create Account',
         busy: 'Creating Account...'
       };
@@ -64,7 +63,6 @@ const Login = () => {
     return {
       eyebrow: 'Welcome back',
       title: 'Log in to Persimmonay',
-      description: 'Continue to your delivery orders, reservations, and latest cafe updates.',
       submit: 'Log In',
       busy: 'Checking Account...'
     };
@@ -143,7 +141,6 @@ const Login = () => {
         <section className="login-card auth-login-card" aria-label="Account form">
           <span className="service-eyebrow">{authContent.eyebrow}</span>
           <h1>{authContent.title}</h1>
-          <p>{authContent.description}</p>
 
           {currentUser && (
             <div className="auth-session-panel">

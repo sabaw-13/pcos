@@ -7136,9 +7136,8 @@ textarea:focus-visible {
   line-height: 1.12;
 }
 
-.auth-login-card > p {
-  margin-bottom: 22px;
-  line-height: 1.6;
+.auth-login-card > h1 + .login-form {
+  margin-top: 22px;
 }
 
 .login-field {

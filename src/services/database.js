@@ -1,5 +1,6 @@
-import { onValue, push, ref, remove, serverTimestamp, set, update } from 'firebase/database';
+import { onValue, push, runTransaction, ref, remove, serverTimestamp, set, update } from 'firebase/database';
 import { database } from './firebase';
+import { createDepositPayment, createReservationFeePayment, requiresPaymentVerification } from '../utils/deposit';
 
 const shouldResetReservationTracking = (status) =>
   ['Arrived', 'Completed', 'Cancelled'].includes(status);
@@ -34,6 +35,13 @@ export const subscribeOrders = (onOrders, onError) =>
   onValue(ref(database, 'orders'), (snapshot) => onOrders(toList(snapshot)), onError);
 
 export const addOrder = (order) => {
+  if (order.service === 'Online Delivery' || (order.service === 'Online Reservation' && order.reservation?.orderingMode === 'preorder')) {
+    order = { ...order, status: 'Pending', paymentMethod: 'gcash', payment: createDepositPayment(order.total, order.payment?.referenceNumber) };
+  }
+  if (order.service === 'Online Reservation' && order.reservation?.orderingMode !== 'preorder') {
+    const payment = createReservationFeePayment(order.payment?.referenceNumber);
+    order = { ...order, status: 'Pending', paymentMethod: 'gcash', total: payment.depositAmount, payment };
+  }
   const orderRef = push(ref(database, 'orders'));
 
   return set(orderRef, {
@@ -45,7 +53,10 @@ export const addOrder = (order) => {
 };
 
 export const updateOrderStatus = (orderId, status) =>
-  update(ref(database, `orders/${orderId}`), {
+  runTransaction(ref(database, `orders/${orderId}`), (order) => {
+    if (!order) return order;
+    if (requiresPaymentVerification(order) && order.payment.status !== 'verified' && !['Pending', 'Cancelled'].includes(status)) return undefined;
+    return { ...order,
     status,
     ...(shouldResetReservationTracking(status)
       ? {
@@ -55,7 +66,12 @@ export const updateOrderStatus = (orderId, status) =>
         }
       : {}),
     updatedAt: serverTimestamp()
-  });
+    };
+  }).then((result) => { if (!result.committed) throw new Error('Verify the deposit before accepting this order.'); });
+
+export const verifyOrderDeposit = (orderId) => update(ref(database, `orders/${orderId}`), {
+  'payment/status': 'verified', 'payment/verifiedAt': serverTimestamp(), updatedAt: serverTimestamp()
+});
 
 export const updateReservationFoodStatus = (orderId, preorderStatus) =>
   update(ref(database, `orders/${orderId}`), {

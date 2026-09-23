@@ -2,6 +2,11 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import Reservation from './reservation';
 import { addOrder, subscribeMenuItems, subscribeOrders } from '../services/database';
 
+jest.mock('../utils/deposit', () => {
+  process.env.REACT_APP_RESERVATION_FEE = '100';
+  return jest.requireActual('../utils/deposit');
+});
+
 jest.mock('react-router-dom', () => ({
   Link: ({ children, to }) => <a href={to}>{children}</a>
 }), { virtual: true });
@@ -27,6 +32,8 @@ const submit = () => {
   fireEvent.change(screen.getByLabelText('Phone number'), { target: { value: '09123456789' } });
   fireEvent.change(screen.getByLabelText('Reservation date'), { target: { value: '2026-12-20' } });
   fireEvent.change(screen.getByLabelText('Arrival time'), { target: { value: '12:00' } });
+  const reference = screen.queryByLabelText('GCash reference number');
+  if (reference) fireEvent.change(reference, { target: { value: '1234567890123' } });
   fireEvent.submit(screen.getByRole('button', { name: 'Submit Reservation' }).closest('form'));
 };
 
@@ -38,7 +45,7 @@ test('saves a table-only reservation without previously selected food', async ()
   fireEvent.click(screen.getByLabelText('Order at the cafe'));
   submit();
   await waitFor(() => expect(addOrder).toHaveBeenCalledWith(expect.objectContaining({
-    total: 0, preorderItems: [], reservation: expect.objectContaining({ orderingMode: 'at-cafe' })
+    total: 100, payment: expect.objectContaining({ type: 'reservation-fee', depositAmount: 100, remainingBalance: 0 }), preorderItems: [], reservation: expect.objectContaining({ orderingMode: 'at-cafe' })
   })));
   expect(addOrder.mock.calls[0][0].items).not.toEqual(expect.arrayContaining([expect.stringContaining('Nachos')]));
 });
@@ -53,7 +60,8 @@ test('saves menu quantities and the food total and displays confirmation', async
   submit();
   await screen.findByText('Reservation request sent');
   expect(addOrder).toHaveBeenCalledWith(expect.objectContaining({
-    total: 270, paymentMethod: 'at-cafe',
+    total: 270, paymentMethod: 'gcash',
+    payment: expect.objectContaining({ depositAmount: 135, remainingBalance: 135, status: 'pending-verification' }),
     preorderItems: [expect.objectContaining({ name: 'Vegetable Cheezy Nachos', quantity: 2, price: 135 })],
     reservation: expect.objectContaining({ orderingMode: 'preorder' })
   }));
