@@ -6697,7 +6697,7 @@ textarea:focus-visible {
   top: 0;
   left: 0;
   right: 0;
-  background: linear-gradient(135deg, var(--accent-color), #4f5f40);
+  background: var(--primary-color);
   border-bottom: 1px solid rgba(255, 253, 248, 0.18);
   box-shadow: 0 10px 28px rgba(47, 36, 31, 0.16);
 }
@@ -6712,7 +6712,7 @@ textarea:focus-visible {
   place-items: center;
   min-width: 34px;
   min-height: 34px;
-  color: var(--accent-color);
+  color: var(--primary-color);
   background: #fffdf8;
   border: 1px solid rgba(255, 253, 248, 0.5);
   border-radius: 10px;
